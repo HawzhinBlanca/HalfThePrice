@@ -50,7 +50,7 @@ services:
     volumes:
       - htp_meili_data:/meili_data
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7700/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:7700/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -61,16 +61,15 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
-    environment:
-      CENTRIFUGO_TOKEN_HMAC_SECRET_KEY: htp_centrifugo_dev_secret
     command: centrifugo --config=/centrifugo/config.json
     volumes:
       - ./deploy/docker/centrifugo.json:/centrifugo/config.json:ro
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8000/health"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
 volumes:
   htp_postgres_data:
