@@ -1,0 +1,44 @@
+guides:
+  - id: verification-engine
+    title: Verification Engine
+    description: >
+      Price verification gatekeeper — listings must pass 50% cap rule before going LIVE.
+      Core logic in packages/database/src/verification.ts; submit flow in apps/web/src/lib/listings.ts.
+    paths:
+      - packages/database/src/verification.ts
+      - packages/database/src/state-machine.ts
+      - apps/web/src/lib/listings.ts
+      - packages/contracts/src/index.ts
+
+  - id: seller-kyc
+    title: Seller KYC
+    description: >
+      Seller onboarding, document upload (MinIO with local fallback), admin KYC approval.
+    paths:
+      - apps/web/src/app/api/seller/onboarding/route.ts
+      - apps/web/src/app/api/seller/onboarding/documents/route.ts
+      - packages/storage/src/index.ts
+      - apps/web/src/app/admin/kyc-actions.tsx
+
+  - id: auth-sessions
+    title: Auth Sessions
+    description: >
+      JWT session cookies via jose, rate-limited login/register, role-based API guards.
+    paths:
+      - apps/web/src/lib/auth.ts
+      - apps/web/src/app/api/auth/login/route.ts
+      - apps/web/src/app/api/auth/register/route.ts
+      - apps/web/src/lib/api.ts
+      - apps/web/src/lib/csrf.ts
+
+  - id: payments-flow
+    title: Payments Flow
+    description: >
+      Sandbox payment providers (COD, ZainCash, QiCard, FastPay), order creation after accepted offer,
+      webhook signature verification pattern.
+    paths:
+      - packages/payments/src/index.ts
+      - apps/web/src/app/api/orders/route.ts
+      - apps/web/src/app/api/payments/webhook/[provider]/route.ts
+      - apps/web/src/app/listings/[id]/checkout-form.tsx
+      - packages/database/prisma/schema.prisma

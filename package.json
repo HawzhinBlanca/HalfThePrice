@@ -1,0 +1,36 @@
+{
+  "name": "half-the-price",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @htp/web dev",
+    "build": "pnpm --filter @htp/database generate && pnpm --filter @htp/web build",
+    "lint": "pnpm --filter @htp/web lint",
+    "test": "pnpm --filter @htp/web test && pnpm --filter @htp/database test && pnpm --filter @htp/payments test && pnpm --filter @htp/retail-crawler test",
+    "test:integration": "pnpm --filter @htp/database test:integration",
+    "db:generate": "pnpm --filter @htp/database generate",
+    "db:migrate": "pnpm --filter @htp/database migrate",
+    "db:push": "pnpm --filter @htp/database push",
+    "db:seed": "pnpm --filter @htp/database seed",
+    "db:studio": "pnpm --filter @htp/database studio",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:prod": "docker compose -f docker-compose.prod.yml up -d --build",
+    "search:sync": "pnpm --filter @htp/search sync",
+    "mobile": "pnpm --filter @htp/mobile start",
+    "setup": "pnpm install && pnpm docker:up && sleep 3 && pnpm db:push && pnpm db:seed",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "^19.1.6",
+      "@types/react-dom": "^19.1.5"
+    }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0"
+  }
+}

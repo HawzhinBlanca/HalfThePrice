@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "HalfThePrice",
+    "slug": "half-the-price",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "htp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "iq.halftheprice.app"
+    },
+    "android": {
+      "package": "iq.halftheprice.app"
+    },
+    "plugins": ["expo-router"]
+  }
+}

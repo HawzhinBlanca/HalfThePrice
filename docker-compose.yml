@@ -1,0 +1,78 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: htp-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: htp
+      POSTGRES_PASSWORD: htp_dev_password
+      POSTGRES_DB: half_the_price
+    volumes:
+      - htp_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U htp -d half_the_price"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: htp-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: htp_minio
+      MINIO_ROOT_PASSWORD: htp_minio_dev_password
+    command: server /data --console-address ":9001"
+    volumes:
+      - htp_minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.14
+    container_name: htp-meilisearch
+    restart: unless-stopped
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_ENV: development
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_MASTER_KEY: htp_meili_dev_key
+    volumes:
+      - htp_meili_data:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  centrifugo:
+    image: centrifugo/centrifugo:v6
+    container_name: htp-centrifugo
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      CENTRIFUGO_TOKEN_HMAC_SECRET_KEY: htp_centrifugo_dev_secret
+    command: centrifugo --config=/centrifugo/config.json
+    volumes:
+      - ./deploy/docker/centrifugo.json:/centrifugo/config.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  htp_postgres_data:
+  htp_minio_data:
+  htp_meili_data:

@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-htp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_DB:-half_the_price}
+    volumes:
+      - htp_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-htp} -d ${POSTGRES_DB:-half_the_price}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY required}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY required}
+    command: server /data --console-address ":9001"
+    volumes:
+      - htp_minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.14
+    restart: unless-stopped
+    environment:
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY:?MEILISEARCH_API_KEY required}
+    volumes:
+      - htp_meili_data:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7700/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  centrifugo:
+    image: centrifugo/centrifugo:v6
+    restart: unless-stopped
+    environment:
+      CENTRIFUGO_TOKEN_HMAC_SECRET_KEY: ${CENTRIFUGO_TOKEN_SECRET:?CENTRIFUGO_TOKEN_SECRET required}
+    command: centrifugo --config=/centrifugo/config.json
+    volumes:
+      - ./deploy/docker/centrifugo.prod.json:/centrifugo/config.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-htp}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-half_the_price}?schema=public
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET required}
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET required}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-htp-kyc}
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_API_KEY: ${MEILISEARCH_API_KEY}
+      CENTRIFUGO_API_URL: http://centrifugo:8000
+      CENTRIFUGO_TOKEN_SECRET: ${CENTRIFUGO_TOKEN_SECRET}
+      CENTRIFUGO_API_KEY: ${CENTRIFUGO_API_KEY:-htp_centrifugo_api_key}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-change-me}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      centrifugo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  htp_postgres_data:
+  htp_minio_data:
+  htp_meili_data:
