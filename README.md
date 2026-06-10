@@ -102,6 +102,7 @@ See `deploy/DEPLOY.md` and `fly.toml` for Fly.io deployment.
 | `PAYMENT_WEBHOOK_SECRET` | HMAC secret for payment webhooks |
 | `SENTRY_DSN` | Sentry DSN (optional in dev) |
 | `CSRF_DISABLED` | Set `true` for e2e/tests only |
+| `RETAIL_CRAWLER_MODE` | `sandbox` (mock) or `live` (Elryan HTTP adapter) |
 | `EXPO_PUBLIC_API_URL` | Mobile API base URL |
 
 ## API highlights
@@ -133,7 +134,7 @@ packages/database/        Prisma, verification engine, retail refresh
 packages/search/          Meilisearch client + sync script
 packages/storage/         MinIO KYC uploads
 packages/payments/        Sandbox payment providers
-packages/retail-crawler/  Elryan + stub adapters
+packages/retail-crawler/  Elryan live/sandbox + stub adapters
 packages/sdk/             Shared API client
 ```
 

@@ -1,0 +1,44 @@
+# Fly.io staging deployment for HalfThePrice
+# Deploy: ./deploy/fly-staging.sh deploy
+# App URL: https://half-the-price-staging.fly.dev
+
+app = "half-the-price-staging"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  MINIO_BUCKET = "htp-kyc-staging"
+  RETAIL_CRAWLER_MODE = "live"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "45s"
+    interval = "30s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "10s"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Required secrets (set via deploy/fly-staging.sh secrets):
+#   DATABASE_URL
+#   NEXTAUTH_SECRET
+#   NEXTAUTH_URL=https://half-the-price-staging.fly.dev
+#   CRON_SECRET
+#   MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY
+#   MEILISEARCH_HOST, MEILISEARCH_API_KEY
+#   CENTRIFUGO_TOKEN_SECRET, CENTRIFUGO_API_KEY
+#   PAYMENT_WEBHOOK_SECRET

@@ -1,4 +1,14 @@
+import type { RetailCrawlerMode } from "../config";
+import { getRetailCrawlerMode } from "../config";
+import { throttle } from "../rate-limit";
+import { getCrawlerUserAgent, isPathAllowed } from "../robots";
 import type { RetailAdapter, RetailObservation } from "../types";
+import {
+  ELRYAN_ORIGIN,
+  ELRYAN_SEARCH_PATH,
+  parseElryanSearchResponse,
+  type ElryanSearchResponse,
+} from "./elryan-parse";
 
 const MOCK_CATALOG: Array<{
   keywords: string[];
@@ -45,15 +55,33 @@ function scoreMatch(query: string, keywords: string[]): number {
   return hits / keywords.length;
 }
 
-/**
- * Elryan adapter — sandbox catalog backed by realistic Iraqi retail SKUs.
- * Production would use Crawl4AI against public product pages.
- */
 export class ElryanAdapter implements RetailAdapter {
   readonly sourceName = "Elryan";
-  readonly parserVersion = "sandbox-1.0.0";
+
+  constructor(private readonly modeOverride?: RetailCrawlerMode) {}
+
+  get parserVersion(): string {
+    const mode = this.modeOverride ?? getRetailCrawlerMode();
+    return mode === "live" ? "live-1.0.0" : "sandbox-1.0.0";
+  }
 
   async searchByTitle(title: string): Promise<RetailObservation[]> {
+    const mode = this.modeOverride ?? getRetailCrawlerMode();
+    if (mode === "live") {
+      try {
+        return await this.searchLive(title);
+      } catch (error) {
+        console.warn(
+          "[ElryanAdapter] live crawl failed, using sandbox fallback:",
+          error instanceof Error ? error.message : error,
+        );
+        return this.searchSandbox(title);
+      }
+    }
+    return this.searchSandbox(title);
+  }
+
+  private searchSandbox(title: string): RetailObservation[] {
     const ranked = MOCK_CATALOG.map((item) => ({
       item,
       score: scoreMatch(title, item.keywords),
@@ -68,7 +96,58 @@ export class ElryanAdapter implements RetailAdapter {
       observedPriceIqd: item.priceIqd,
       stockState: "IN_STOCK",
       productTitle: item.title,
-      parserVersion: this.parserVersion,
+      parserVersion: "sandbox-1.0.0",
     }));
+  }
+
+  private async searchLive(title: string): Promise<RetailObservation[]> {
+    const allowed = await isPathAllowed(ELRYAN_ORIGIN, "/api/catalog/");
+    if (!allowed) {
+      throw new Error("Elryan robots.txt disallows catalog API path");
+    }
+
+    await throttle("elryan", 2000);
+
+    const body = {
+      query: {
+        bool: {
+          must: [{ match: { name: title } }],
+          filter: [{ range: { iqd_price: { gt: 0 } } }],
+        },
+      },
+      size: 8,
+      _source: [
+        "name",
+        "url_path",
+        "iqd_price",
+        "final_price",
+        "price",
+        "stock.is_in_stock",
+      ],
+    };
+
+    const response = await fetch(`${ELRYAN_ORIGIN}${ELRYAN_SEARCH_PATH}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": getCrawlerUserAgent(),
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(12_000),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Elryan catalog API returned ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const payload = (await response.json()) as ElryanSearchResponse;
+    const observations = parseElryanSearchResponse(payload, title);
+    if (observations.length === 0) {
+      throw new Error("Elryan catalog API returned no matching priced products");
+    }
+    return observations;
   }
 }

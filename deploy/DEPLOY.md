@@ -11,6 +11,25 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 
 ## Fly.io
 
+### Staging (`half-the-price-staging`)
+
+Uses `fly.staging.toml` and `deploy/fly-staging.sh`.
+
+```bash
+brew install flyctl
+fly auth login
+cp .env.example .env.staging   # staging values only — never prod secrets
+./deploy/fly-staging.sh secrets
+./deploy/fly-staging.sh deploy
+./deploy/fly-staging.sh health   # GET /api/health
+```
+
+Staging URL: `https://half-the-price-staging.fly.dev`
+
+Set `RETAIL_CRAWLER_MODE=live` in `.env.staging` (or Fly secrets) to enable the Elryan live adapter.
+
+### Production (`half-the-price`)
+
 1. Install [flyctl](https://fly.io/docs/hands-on/install-flyctl/)
 2. `fly launch --no-deploy` (or use existing `fly.toml`)
 3. Set secrets:
