@@ -5,6 +5,7 @@ import { getLocale } from "@/lib/locale";
 import { t } from "@/lib/i18n/messages";
 import { ThemeToggle } from "./theme-toggle";
 import { LocaleSwitcher } from "./locale-switcher";
+import { LogoutButton } from "./logout-button";
 
 export async function Header() {
   const [session, locale] = await Promise.all([getSession(), getLocale()]);
@@ -49,14 +50,7 @@ export async function Header() {
           {session ? (
             <div className="ml-1 flex items-center gap-2">
               <span className="hidden text-sm text-zinc-500 md:inline">{session.name}</span>
-              <form action="/api/auth/logout" method="POST">
-                <button
-                  type="submit"
-                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-                >
-                  {t(locale, "nav.signOut")}
-                </button>
-              </form>
+              <LogoutButton label={t(locale, "nav.signOut")} />
             </div>
           ) : (
             <Link

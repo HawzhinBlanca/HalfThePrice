@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@htp/database";
-import { requireAuth, jsonError } from "@/lib/api";
+import { requireAuth, requireMutatingAuth, jsonError } from "@/lib/api";
 import { sanitizeText } from "@/lib/sanitize";
 
 const onboardingSchema = z.object({
@@ -32,7 +32,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
-  const auth = await requireAuth(["SELLER", "ADMIN"]);
+  const auth = await requireMutatingAuth(request, ["SELLER", "ADMIN"]);
   if (auth instanceof NextResponse) return auth;
 
   const body: unknown = await request.json();

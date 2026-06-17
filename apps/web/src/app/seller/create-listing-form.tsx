@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { IRAQI_GOVERNORATES } from "@/lib/constants";
 import { useI18n } from "@/lib/i18n/provider";
+import { mutatingFetch } from "@/lib/use-csrf";
 
 interface CreateListingFormProps {
   categories: { id: string; name: string }[];
@@ -35,9 +36,8 @@ export function CreateListingForm({ categories }: CreateListingFormProps) {
     }
 
     try {
-      const res = await fetch("/api/seller/listings", {
+      const res = await mutatingFetch("/api/seller/listings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.get("title"),
           description: form.get("description") || undefined,

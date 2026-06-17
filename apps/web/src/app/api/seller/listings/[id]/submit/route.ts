@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import { requireAuth, jsonError } from "@/lib/api";
+import { NextRequest, NextResponse } from "next/server";
+import { requireMutatingAuth, jsonError } from "@/lib/api";
 import { submitListingForVerification } from "@/lib/listings";
 
 export async function POST(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireAuth(["SELLER", "ADMIN"]);
+  const auth = await requireMutatingAuth(request, ["SELLER", "ADMIN"]);
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;

@@ -19,17 +19,14 @@
     "mobile": "pnpm --filter @htp/mobile start",
     "setup": "pnpm install && pnpm docker:up && sleep 3 && pnpm db:push && pnpm db:seed",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "typecheck": "pnpm -r typecheck"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "pnpm": "10.12.1"
   },
-  "pnpm": {
-    "overrides": {
-      "@types/react": "^19.1.6",
-      "@types/react-dom": "^19.1.5"
-    }
-  },
+  "packageManager": "pnpm@10.12.1",
   "devDependencies": {
     "@playwright/test": "^1.52.0"
   }

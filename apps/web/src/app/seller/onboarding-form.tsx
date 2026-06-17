@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n/provider";
+import { mutatingFetch } from "@/lib/use-csrf";
 
 interface OnboardingFormProps {
   initial: {
@@ -43,9 +44,8 @@ export function OnboardingForm({ initial }: OnboardingFormProps) {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/seller/onboarding", {
+      const res = await mutatingFetch("/api/seller/onboarding", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           legalName,
           displayName,
@@ -88,9 +88,8 @@ export function OnboardingForm({ initial }: OnboardingFormProps) {
       }
       const contentBase64 = btoa(binary);
 
-      const res = await fetch("/api/seller/onboarding/documents", {
+      const res = await mutatingFetch("/api/seller/onboarding/documents", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentType,
           fileName: file.name,

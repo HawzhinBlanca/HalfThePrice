@@ -5,6 +5,10 @@ export interface RetailObservation {
   stockState: "IN_STOCK" | "OUT_OF_STOCK" | "UNKNOWN";
   productTitle: string;
   parserVersion: string;
+  nativeCurrency?: string;
+  nativeAmount?: number;
+  exchangeRate?: number;
+  rateTimestamp?: Date;
 }
 
 export interface RetailAdapter {

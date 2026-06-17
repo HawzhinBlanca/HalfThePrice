@@ -173,6 +173,9 @@ async function main() {
         sourceName: "Elryan",
         sourceUrl: "https://elryan.com/samsung-galaxy-s24-ultra",
         observedPriceIqd: 1_850_000,
+        nativeCurrency: "IQD",
+        nativeAmount: 1_850_000,
+        exchangeRate: 1.0,
         observedAt: now,
         evidenceHash: hashEvidence("https://elryan.com/samsung-galaxy-s24-ultra", 1_850_000, now),
       },
@@ -183,6 +186,9 @@ async function main() {
         sourceName: "Miswag",
         sourceUrl: "https://miswag.com/samsung-s24-ultra",
         observedPriceIqd: 1_920_000,
+        nativeCurrency: "IQD",
+        nativeAmount: 1_920_000,
+        exchangeRate: 1.0,
         observedAt: now,
         evidenceHash: hashEvidence("https://miswag.com/samsung-s24-ultra", 1_920_000, now),
       },
@@ -193,6 +199,10 @@ async function main() {
         sourceName: "iCenter Iraq",
         sourceUrl: "https://icenter-iraq.com/macbook-air-m3",
         observedPriceIqd: 2_400_000,
+        nativeCurrency: "USD",
+        nativeAmount: 1558.44,
+        exchangeRate: 1540.0,
+        rateTimestamp: now,
         observedAt: now,
         evidenceHash: hashEvidence("https://icenter-iraq.com/macbook-air-m3", 2_400_000, now),
       },
@@ -203,6 +213,9 @@ async function main() {
         sourceName: "Alhafidh",
         sourceUrl: "https://alhafidh.com/ps5-slim",
         observedPriceIqd: 980_000,
+        nativeCurrency: "IQD",
+        nativeAmount: 980_000,
+        exchangeRate: 1.0,
         observedAt: now,
         evidenceHash: hashEvidence("https://alhafidh.com/ps5-slim", 980_000, now),
       },
@@ -219,7 +232,7 @@ async function main() {
         description: "Excellent condition, includes original box and charger. Minor scratch on back.",
         condition: "LIKE_NEW",
         sellerPriceIqd: 900_000,
-        status: "LIVE",
+        status: "DRAFT",
         governorate: "Baghdad",
         imageUrl: "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=800&q=80",
         publishedAt: now,
@@ -234,7 +247,7 @@ async function main() {
         description: "Purchased 6 months ago, AppleCare until 2026. Perfect condition.",
         condition: "LIKE_NEW",
         sellerPriceIqd: 1_150_000,
-        status: "LIVE",
+        status: "DRAFT",
         governorate: "Erbil",
         imageUrl: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&q=80",
         publishedAt: now,
@@ -249,7 +262,7 @@ async function main() {
         description: "Used for 3 months, includes extra DualSense controller.",
         condition: "GOOD",
         sellerPriceIqd: 480_000,
-        status: "LIVE",
+        status: "DRAFT",
         governorate: "Basra",
         imageUrl: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=800&q=80",
         publishedAt: now,
@@ -266,6 +279,10 @@ async function main() {
     const retailPrices = productRefs.map((r) => r.observedPriceIqd);
     const medianRetail = retailPrices.sort((a, b) => a - b)[Math.floor(retailPrices.length / 2)] ?? ref.observedPriceIqd;
 
+    const category = categories.find((c) => c.id === listing.categoryId);
+    const matchThreshold = category?.matchConfidenceThreshold ?? 0.85;
+    const ttlDays = category?.retailTtlDays ?? 30;
+
     await prisma.priceVerificationRun.create({
       data: {
         listingId: listing.id,
@@ -273,9 +290,19 @@ async function main() {
         selectedReferenceId: ref.id,
         verifiedRetailIqd: medianRetail,
         computedCapIqd: Math.floor(medianRetail * 0.5),
+        priceCapRatio: 0.5,
+        matchConfidenceThreshold: matchThreshold,
+        retailTtlDays: ttlDays,
+        parserVersion: "seed-1.0.0",
         result: "PASS",
         message: "Listing passes price verification.",
       },
+    });
+
+    // Update listing to LIVE after verification run exists to satisfy database triggers
+    await prisma.listing.update({
+      where: { id: listing.id },
+      data: { status: "LIVE" },
     });
   }
 
@@ -328,6 +355,73 @@ async function main() {
       after: { users: 4, listings: 5, products: 3 },
     },
   });
+
+  // Create Postgres function and trigger to enforce the half-price promise at the DB level
+  console.log("Installing database-level price-cap triggers...");
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION check_listing_price_cap()
+    RETURNS TRIGGER AS $$
+    DECLARE
+        latest_run RECORD;
+        ttl_days INTEGER;
+        ref_observed_at TIMESTAMP;
+    BEGIN
+        -- Only check if status is set to 'LIVE'
+        IF NEW.status = 'LIVE' THEN
+            -- Find the latest price verification run for this listing that passed
+            SELECT * INTO latest_run
+            FROM price_verification_runs
+            WHERE "listingId" = NEW.id
+              AND result = 'PASS'
+            ORDER BY "createdAt" DESC
+            LIMIT 1;
+
+            IF NOT FOUND THEN
+                RAISE EXCEPTION 'Cannot publish listing %: No passing verification run found', NEW.id;
+            END IF;
+
+            -- Check if the seller price exceeds the computed cap in that verification run
+            IF NEW."sellerPriceIqd" > latest_run."computedCapIqd" THEN
+                RAISE EXCEPTION 'Cannot publish listing %: sellerPriceIqd (%) exceeds computedCapIqd (%)',
+                    NEW.id, NEW."sellerPriceIqd", latest_run."computedCapIqd";
+            END IF;
+
+            -- Check if the selected reference is fresher than category.retailTtlDays
+            SELECT "retailTtlDays" INTO ttl_days
+            FROM categories
+            WHERE id = NEW."categoryId";
+
+            IF FOUND THEN
+                SELECT "observedAt" INTO ref_observed_at
+                FROM retail_references
+                WHERE id = latest_run."selectedReferenceId";
+
+                IF FOUND THEN
+                    IF ref_observed_at < NOW() - (ttl_days * INTERVAL '1 day') THEN
+                        RAISE EXCEPTION 'Cannot publish listing %: Selected retail reference is stale', NEW.id;
+                    END IF;
+                ELSE
+                    RAISE EXCEPTION 'Cannot publish listing %: Selected retail reference not found', NEW.id;
+                END IF;
+            ELSE
+                RAISE EXCEPTION 'Cannot publish listing %: Category not found', NEW.id;
+            END IF;
+        END IF;
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    DROP TRIGGER IF EXISTS trg_check_listing_price_cap ON listings;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_check_listing_price_cap
+    BEFORE INSERT OR UPDATE ON listings
+    FOR EACH ROW
+    EXECUTE FUNCTION check_listing_price_cap();
+  `);
 
   console.log("Seed complete.");
   console.log("Demo accounts (password: password123):");

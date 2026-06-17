@@ -11,19 +11,21 @@
     "seed": "tsx prisma/seed.ts",
     "studio": "prisma studio",
     "test": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@htp/contracts": "workspace:*",
     "@htp/retail-crawler": "workspace:*",
-    "@prisma/client": "^6.8.2"
+    "@prisma/client": "^6.19.3"
   },
   "devDependencies": {
-    "bcryptjs": "^3.0.2",
     "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.19.20",
+    "bcryptjs": "^3.0.2",
     "prisma": "^6.8.2",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3",
+    "typescript": "^5.9.3",
     "vitest": "^3.1.4"
   }
 }

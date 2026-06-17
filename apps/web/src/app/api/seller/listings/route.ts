@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@htp/database";
-import { requireAuth, jsonError } from "@/lib/api";
+import { requireAuth, requireMutatingAuth, jsonError } from "@/lib/api";
 
 const createListingSchema = z.object({
   title: z.string().min(5).max(200),
@@ -31,7 +31,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(["SELLER", "ADMIN"]);
+  const auth = await requireMutatingAuth(request, ["SELLER", "ADMIN"]);
   if (auth instanceof NextResponse) return auth;
 
   const sellerProfile = await prisma.sellerProfile.findUnique({
