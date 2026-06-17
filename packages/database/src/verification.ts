@@ -12,13 +12,32 @@ import type {
   VerificationResult,
 } from "@prisma/client";
 
+export const TRUSTED_SOURCES = new Set([
+  "official-retailer",
+  "authorized-dealer",
+  "brand-website",
+  "verified-marketplace",
+  "Elryan",
+  "Miswag",
+  "Alhafidh",
+  "iCenter Iraq",
+]);
+
 export interface VerificationInput {
   listing: Pick<Listing, "id" | "sellerPriceIqd" | "title">;
   category: Pick<Category, "whitelistStatus" | "matchConfidenceThreshold" | "retailTtlDays">;
   canonicalProduct: Pick<CanonicalProduct, "brand" | "model"> | null;
   retailReferences: Pick<
     RetailReference,
-    "id" | "observedPriceIqd" | "observedAt" | "stockState" | "sourceName"
+    | "id"
+    | "observedPriceIqd"
+    | "observedAt"
+    | "stockState"
+    | "sourceName"
+    | "nativeCurrency"
+    | "nativeAmount"
+    | "exchangeRate"
+    | "rateTimestamp"
   >[];
   matchConfidence: number;
 }
@@ -30,6 +49,10 @@ export interface VerificationDecision {
   computedCapIqd: number | null;
   selectedReferenceId: string | null;
   message: string;
+  priceCapRatio?: number;
+  matchConfidenceThreshold?: number;
+  retailTtlDays?: number;
+  parserVersion?: string;
 }
 
 function median(values: number[]): number {
@@ -67,6 +90,15 @@ function isReferenceFresh(
   return ageMs <= ttlMs;
 }
 
+export function resolveRefPriceIqd(
+  ref: Pick<RetailReference, "observedPriceIqd" | "nativeCurrency" | "nativeAmount" | "exchangeRate">
+): number {
+  const currency = ref.nativeCurrency ?? "IQD";
+  const amount = ref.nativeAmount ?? ref.observedPriceIqd;
+  const rate = ref.exchangeRate ?? 1.0;
+  return Math.round(amount * rate);
+}
+
 export function selectVerifiedRetailPrice(
   references: VerificationInput["retailReferences"],
   ttlDays: number,
@@ -74,19 +106,32 @@ export function selectVerifiedRetailPrice(
   const freshInStock = references.filter(
     (ref) =>
       ref.stockState === "IN_STOCK" &&
-      isReferenceFresh(ref.observedAt, ttlDays),
+      isReferenceFresh(ref.observedAt, ttlDays) &&
+      TRUSTED_SOURCES.has(ref.sourceName),
   );
 
   if (freshInStock.length === 0) return null;
 
-  const prices = filterOutliers(freshInStock.map((r) => r.observedPriceIqd));
+  const rawPrices = freshInStock.map((r) => resolveRefPriceIqd(r));
+  const medianRaw = median(rawPrices);
+
+  // Anomaly guard: reject references whose price jumps > 30% vs the median of fresh references
+  const cleanReferences = freshInStock.filter((ref) => {
+    const priceIqd = resolveRefPriceIqd(ref);
+    const ratio = priceIqd / medianRaw;
+    return ratio >= 0.7 && ratio <= 1.3;
+  });
+
+  if (cleanReferences.length === 0) return null;
+
+  const prices = filterOutliers(cleanReferences.map((r) => resolveRefPriceIqd(r)));
   if (prices.length === 0) return null;
 
   const medianPrice = median(prices);
 
-  const closest = freshInStock.reduce((best, ref) => {
-    const diff = Math.abs(ref.observedPriceIqd - medianPrice);
-    const bestDiff = Math.abs(best.observedPriceIqd - medianPrice);
+  const closest = cleanReferences.reduce((best, ref) => {
+    const diff = Math.abs(resolveRefPriceIqd(ref) - medianPrice);
+    const bestDiff = Math.abs(resolveRefPriceIqd(best) - medianPrice);
     return diff < bestDiff ? ref : best;
   });
 
@@ -109,6 +154,9 @@ export function runVerification(input: VerificationInput): VerificationDecision 
       verifiedRetailIqd: null,
       computedCapIqd: null,
       selectedReferenceId: null,
+      priceCapRatio: 0.5,
+      matchConfidenceThreshold: category.matchConfidenceThreshold,
+      retailTtlDays: category.retailTtlDays,
       message: "Category is not approved for listing.",
     };
   }
@@ -120,6 +168,9 @@ export function runVerification(input: VerificationInput): VerificationDecision 
       verifiedRetailIqd: null,
       computedCapIqd: null,
       selectedReferenceId: null,
+      priceCapRatio: 0.5,
+      matchConfidenceThreshold: category.matchConfidenceThreshold,
+      retailTtlDays: category.retailTtlDays,
       message: "No canonical product match found. Sent to manual review.",
     };
   }
@@ -131,6 +182,9 @@ export function runVerification(input: VerificationInput): VerificationDecision 
       verifiedRetailIqd: null,
       computedCapIqd: null,
       selectedReferenceId: null,
+      priceCapRatio: 0.5,
+      matchConfidenceThreshold: category.matchConfidenceThreshold,
+      retailTtlDays: category.retailTtlDays,
       message: `Match confidence ${(matchConfidence * 100).toFixed(0)}% below threshold.`,
     };
   }
@@ -147,6 +201,9 @@ export function runVerification(input: VerificationInput): VerificationDecision 
       verifiedRetailIqd: null,
       computedCapIqd: null,
       selectedReferenceId: null,
+      priceCapRatio: 0.5,
+      matchConfidenceThreshold: category.matchConfidenceThreshold,
+      retailTtlDays: category.retailTtlDays,
       message: "No fresh retail reference available.",
     };
   }
@@ -160,9 +217,60 @@ export function runVerification(input: VerificationInput): VerificationDecision 
       verifiedRetailIqd: selected.price,
       computedCapIqd: capCheck.computedCapIqd,
       selectedReferenceId: selected.referenceId,
+      priceCapRatio: 0.5,
+      matchConfidenceThreshold: category.matchConfidenceThreshold,
+      retailTtlDays: category.retailTtlDays,
       message: `Price ${listing.sellerPriceIqd.toLocaleString()} IQD exceeds cap of ${capCheck.computedCapIqd.toLocaleString()} IQD (50% of verified retail).`,
     };
   }
+
+  // Check for stale exchange rates
+  const now = new Date();
+  let exchangeRateStale = false;
+  for (const ref of retailReferences) {
+    if (ref.nativeCurrency && ref.nativeCurrency !== "IQD" && ref.rateTimestamp) {
+      const ageMs = now.getTime() - new Date(ref.rateTimestamp).getTime();
+      if (ageMs > 7 * 24 * 60 * 60 * 1000) {
+        console.warn(`Exchange rate for reference ${ref.id} (${ref.sourceName}) is stale (older than 7 days)`);
+        exchangeRateStale = true;
+      }
+    }
+  }
+
+  const freshInStock = retailReferences.filter(
+    (ref) =>
+      ref.stockState === "IN_STOCK" &&
+      isReferenceFresh(ref.observedAt, category.retailTtlDays) &&
+      TRUSTED_SOURCES.has(ref.sourceName),
+  );
+
+  let cleanReferences = freshInStock;
+  if (freshInStock.length > 0) {
+    const rawPrices = freshInStock.map((r) => resolveRefPriceIqd(r));
+    const medianRaw = median(rawPrices);
+    cleanReferences = freshInStock.filter((ref) => {
+      const priceIqd = resolveRefPriceIqd(ref);
+      const ratio = priceIqd / medianRaw;
+      return ratio >= 0.7 && ratio <= 1.3;
+    });
+  }
+  const uniqueSources = new Set(cleanReferences.map((ref) => ref.sourceName));
+
+  if (uniqueSources.size < 2) {
+    return {
+      result: "MANUAL_REVIEW",
+      matchConfidence,
+      verifiedRetailIqd: selected.price,
+      computedCapIqd: capCheck.computedCapIqd,
+      selectedReferenceId: selected.referenceId,
+      priceCapRatio: 0.5,
+      matchConfidenceThreshold: category.matchConfidenceThreshold,
+      retailTtlDays: category.retailTtlDays,
+      message: `Quorum not met: only ${uniqueSources.size} independent sources available (minimum 2 required). Sent to manual review.`,
+    };
+  }
+
+  const warningSuffix = exchangeRateStale ? " Warning: Stale exchange rates used." : "";
 
   return {
     result: "PASS",
@@ -170,7 +278,10 @@ export function runVerification(input: VerificationInput): VerificationDecision 
     verifiedRetailIqd: selected.price,
     computedCapIqd: capCheck.computedCapIqd,
     selectedReferenceId: selected.referenceId,
-    message: "Listing passes price verification and is eligible for publication.",
+    priceCapRatio: 0.5,
+    matchConfidenceThreshold: category.matchConfidenceThreshold,
+    retailTtlDays: category.retailTtlDays,
+    message: "Listing passes price verification and is eligible for publication." + warningSuffix,
   };
 }
 

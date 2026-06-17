@@ -14,3 +14,4 @@ test-results/
 playwright-report/
 .cocoindex_code/cocoindex.db/
 .cocoindex_code/target_sqlite.db
+*.tsbuildinfo

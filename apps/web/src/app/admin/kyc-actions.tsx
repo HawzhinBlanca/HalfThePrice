@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n/provider";
+import { mutatingFetch } from "@/lib/use-csrf";
 
 export function KycActions({ profileId }: { profileId: string }) {
   const router = useRouter();
@@ -22,9 +23,8 @@ export function KycActions({ profileId }: { profileId: string }) {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/seller/${profileId}/kyc`, {
+      const res = await mutatingFetch(`/api/admin/seller/${profileId}/kyc`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, reason: reason.trim() }),
       });
 

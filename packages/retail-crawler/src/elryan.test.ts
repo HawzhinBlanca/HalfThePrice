@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ElryanAdapter, fetchRetailReferences } from "./index";
 import {
   parseElryanSearchResponse,
-  resolveElryanPriceIqd,
+  resolveElryanPriceDetails,
 } from "./adapters/elryan-parse";
 import { clearRobotsCacheForTests } from "./robots";
 
@@ -27,16 +27,19 @@ describe("Elryan sandbox adapter", () => {
 
 describe("Elryan live parser", () => {
   it("prefers iqd_price over USD conversion", () => {
-    expect(
-      resolveElryanPriceIqd({
-        iqd_price: 452_880,
-        final_price: 294,
-      }),
-    ).toBe(452_880);
+    const details = resolveElryanPriceDetails({
+      iqd_price: 452_880,
+      final_price: 294,
+    });
+    expect(details.observedPriceIqd).toBe(452_880);
+    expect(details.nativeCurrency).toBe("IQD");
   });
 
   it("converts USD when iqd_price missing", () => {
-    expect(resolveElryanPriceIqd({ final_price: 100 })).toBe(154_000);
+    const details = resolveElryanPriceDetails({ final_price: 100 });
+    expect(details.observedPriceIqd).toBe(154_000);
+    expect(details.nativeCurrency).toBe("USD");
+    expect(details.exchangeRate).toBe(1540);
   });
 
   it("parses catalog search hits", () => {

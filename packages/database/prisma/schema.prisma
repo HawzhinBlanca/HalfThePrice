@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -198,6 +199,10 @@ model RetailReference {
   sourceName         String
   sourceUrl          String
   observedPriceIqd   Int
+  nativeCurrency     String   @default("IQD")
+  nativeAmount       Float
+  exchangeRate       Float    @default(1.0)
+  rateTimestamp      DateTime?
   stockState         String   @default("IN_STOCK")
   observedAt         DateTime @default(now())
   parserVersion      String   @default("1.0.0")
@@ -248,6 +253,10 @@ model PriceVerificationRun {
   selectedReferenceId  String?
   verifiedRetailIqd    Int?
   computedCapIqd       Int?
+  priceCapRatio        Float              @default(0.5)
+  matchConfidenceThreshold Float          @default(0.85)
+  retailTtlDays        Int                @default(30)
+  parserVersion        String?
   result               VerificationResult @default(PENDING)
   reviewerId           String?
   message              String?

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n/provider";
+import { mutatingFetch } from "@/lib/use-csrf";
 
 export function ModerationActions({ listingId }: { listingId: string }) {
   const router = useRouter();
@@ -22,9 +23,8 @@ export function ModerationActions({ listingId }: { listingId: string }) {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/listings/${listingId}/override`, {
+      const res = await mutatingFetch(`/api/admin/listings/${listingId}/override`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, reason: reason.trim() }),
       });
 

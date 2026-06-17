@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ListingStatusBadge } from "@/components/listing-status-badge";
 import { useI18n } from "@/lib/i18n/provider";
+import { mutatingFetch } from "@/lib/use-csrf";
 
 interface SubmitResult {
   message?: string;
@@ -23,7 +24,7 @@ export function SubmitListingButton({ listingId }: { listingId: string }) {
     setResult(null);
 
     try {
-      const res = await fetch(`/api/seller/listings/${listingId}/submit`, {
+      const res = await mutatingFetch(`/api/seller/listings/${listingId}/submit`, {
         method: "POST",
       });
       const data: SubmitResult = await res.json();

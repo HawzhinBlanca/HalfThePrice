@@ -46,6 +46,18 @@ export async function POST(
     return jsonError("Order not found.", 404);
   }
 
+  if (
+    order.status === "CONFIRMED" ||
+    order.status === "FAILED" ||
+    order.status === "CANCELLED"
+  ) {
+    return NextResponse.json({
+      received: true,
+      sandbox: true,
+      message: "Order already processed and in a terminal state.",
+    });
+  }
+
   const succeeded = payload.status === "SUCCEEDED";
 
   if (order.paymentIntent) {

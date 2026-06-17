@@ -22,16 +22,35 @@ export interface ElryanSearchResponse {
   hits?: { hits?: ElryanCatalogHit[] };
 }
 
-export function resolveElryanPriceIqd(product: ElryanCatalogProduct): number {
+export function resolveElryanPriceDetails(product: ElryanCatalogProduct): {
+  observedPriceIqd: number;
+  nativeCurrency: string;
+  nativeAmount: number;
+  exchangeRate: number;
+} {
   if (typeof product.iqd_price === "number" && product.iqd_price > 0) {
-    return Math.round(product.iqd_price);
+    return {
+      observedPriceIqd: Math.round(product.iqd_price),
+      nativeCurrency: "IQD",
+      nativeAmount: product.iqd_price,
+      exchangeRate: 1.0,
+    };
   }
-  const usd =
-    product.final_price ?? product.price ?? 0;
+  const usd = product.final_price ?? product.price ?? 0;
   if (usd > 0) {
-    return Math.round(usd * ELRYAN_USD_TO_IQD_RATE);
+    return {
+      observedPriceIqd: Math.round(usd * ELRYAN_USD_TO_IQD_RATE),
+      nativeCurrency: "USD",
+      nativeAmount: usd,
+      exchangeRate: ELRYAN_USD_TO_IQD_RATE,
+    };
   }
-  return 0;
+  return {
+    observedPriceIqd: 0,
+    nativeCurrency: "IQD",
+    nativeAmount: 0,
+    exchangeRate: 1.0,
+  };
 }
 
 export function parseElryanSearchResponse(
@@ -45,8 +64,8 @@ export function parseElryanSearchResponse(
     .map((hit) => {
       const product = hit._source;
       if (!product?.name) return null;
-      const priceIqd = resolveElryanPriceIqd(product);
-      if (priceIqd <= 0) return null;
+      const priceDetails = resolveElryanPriceDetails(product);
+      if (priceDetails.observedPriceIqd <= 0) return null;
       const urlPath = product.url_path;
       if (!urlPath) return null;
       const score = scoreTitleMatch(queryTokens, product.name);
@@ -55,10 +74,14 @@ export function parseElryanSearchResponse(
         observation: {
           sourceName: "Elryan",
           sourceUrl: `${ELRYAN_ORIGIN}/${urlPath}`,
-          observedPriceIqd: priceIqd,
+          observedPriceIqd: priceDetails.observedPriceIqd,
           stockState: product.stock?.is_in_stock ? "IN_STOCK" : "OUT_OF_STOCK",
           productTitle: product.name.trim(),
           parserVersion: "live-1.0.0",
+          nativeCurrency: priceDetails.nativeCurrency,
+          nativeAmount: priceDetails.nativeAmount,
+          exchangeRate: priceDetails.exchangeRate,
+          rateTimestamp: new Date(),
         } satisfies RetailObservation,
       };
     })

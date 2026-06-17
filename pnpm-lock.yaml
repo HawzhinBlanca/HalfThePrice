@@ -149,6 +149,9 @@ importers:
 
   packages/contracts:
     devDependencies:
+      '@types/node':
+        specifier: ^22.15.21
+        version: 22.19.20
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -162,12 +165,15 @@ importers:
         specifier: workspace:*
         version: link:../retail-crawler
       '@prisma/client':
-        specifier: ^6.8.2
+        specifier: ^6.19.3
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
     devDependencies:
       '@types/bcryptjs':
         specifier: ^2.4.6
         version: 2.4.6
+      '@types/node':
+        specifier: ^22.19.20
+        version: 22.19.20
       bcryptjs:
         specifier: ^3.0.2
         version: 3.0.3
@@ -178,7 +184,7 @@ importers:
         specifier: ^4.19.4
         version: 4.22.4
       typescript:
-        specifier: ^5.8.3
+        specifier: ^5.9.3
         version: 5.9.3
       vitest:
         specifier: ^3.1.4
@@ -208,6 +214,9 @@ importers:
         specifier: workspace:*
         version: link:../contracts
     devDependencies:
+      '@types/node':
+        specifier: ^22.15.21
+        version: 22.19.20
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@htp/database";
-import { requireAuth, jsonError } from "@/lib/api";
+import { requireMutatingAuth, jsonError } from "@/lib/api";
 
 const overrideSchema = z.object({
   action: z.enum(["APPROVE", "REJECT"]),
@@ -12,7 +12,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireAuth(["ADMIN"]);
+  const auth = await requireMutatingAuth(request, ["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;

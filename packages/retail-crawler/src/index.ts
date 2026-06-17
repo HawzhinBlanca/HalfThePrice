@@ -11,7 +11,7 @@ export { MiswagAdapter } from "./adapters/miswag";
 export { AlhafidhAdapter } from "./adapters/alhafidh";
 export {
   parseElryanSearchResponse,
-  resolveElryanPriceIqd,
+  resolveElryanPriceDetails,
   ELRYAN_ORIGIN,
   ELRYAN_SEARCH_PATH,
 } from "./adapters/elryan-parse";

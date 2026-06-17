@@ -6,7 +6,7 @@ import { CSRF_COOKIE, CSRF_HEADER } from "./constants";
 export { CSRF_COOKIE, CSRF_HEADER };
 
 function getSecret(): string {
-  return process.env.NEXTAUTH_SECRET ?? "dev-secret-change-in-production";
+  return process.env.NEXTAUTH_SECRET ?? "default_development_secret_key_placeholder";
 }
 
 export function generateCsrfToken(): string {

@@ -7,7 +7,8 @@
   "types": "./src/index.ts",
   "scripts": {
     "test": "vitest run",
-    "sync": "tsx --env-file=../../.env src/sync.ts"
+    "sync": "tsx --env-file=../../.env src/sync.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@htp/database": "workspace:*",

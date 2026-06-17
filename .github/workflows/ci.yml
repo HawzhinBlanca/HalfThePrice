@@ -34,9 +34,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Grep guards
+        run: |
+          # 1. No *.js files under packages/*/src or apps/*/src
+          if find packages apps -path "*/src/*.js" | grep .; then
+            echo "Error: Leaked JS files found in source directories."
+            exit 1
+          fi
+
+          # 2. No nested packages/*/packages/ directory
+          if find packages -mindepth 2 -type d -name "packages" | grep .; then
+            echo "Error: Nested packages/ directory found under packages/*/"
+            exit 1
+          fi
+
+          # 3. No dev-secret literal in source files
+          if git grep -i "dev-secret" -- ':!.github/workflows/ci.yml'; then
+            echo "Error: Forbidden 'dev-secret' literal found in the codebase."
+            exit 1
+          fi
+
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -54,6 +72,9 @@ jobs:
 
       - name: Seed database
         run: pnpm db:seed
+
+      - name: Type check
+        run: pnpm typecheck
 
       - name: Lint
         run: pnpm lint

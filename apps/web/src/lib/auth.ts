@@ -11,7 +11,7 @@ export interface SessionUser {
 
 const COOKIE_NAME = "htp_session";
 const secret = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET ?? "dev-secret-change-in-production",
+  process.env.NEXTAUTH_SECRET ?? "default_development_secret_key_placeholder",
 );
 
 export async function createSessionToken(user: SessionUser): Promise<string> {

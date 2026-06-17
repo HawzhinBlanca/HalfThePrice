@@ -17,6 +17,14 @@ describe("price cap calculation", () => {
     expect(computePriceCap(999_999)).toBe(499_999);
   });
 
+  it("property test: cap <= retail / 2 for all retail in [MIN_PRICE, MAX_PRICE]", () => {
+    // Check various retail prices in the range of 1 to 5,000,000 IQD
+    for (let retail = 1; retail <= 5_000_000; retail += 1007) {
+      const cap = computePriceCap(retail);
+      expect(cap).toBeLessThanOrEqual(retail / 2);
+    }
+  });
+
   it("checks seller price against cap", () => {
     const pass = checkPriceCap(900_000, 1_850_000);
     expect(pass.passesCap).toBe(true);
@@ -43,6 +51,10 @@ describe("retail reference selection", () => {
           observedAt: now,
           stockState: "IN_STOCK",
           sourceName: "Elryan",
+          nativeCurrency: "IQD",
+          nativeAmount: 1_850_000,
+          exchangeRate: 1.0,
+          rateTimestamp: null,
         },
         {
           id: "ref2",
@@ -50,6 +62,10 @@ describe("retail reference selection", () => {
           observedAt: now,
           stockState: "IN_STOCK",
           sourceName: "Miswag",
+          nativeCurrency: "IQD",
+          nativeAmount: 1_920_000,
+          exchangeRate: 1.0,
+          rateTimestamp: null,
         },
       ],
       30,
@@ -69,6 +85,10 @@ describe("retail reference selection", () => {
           observedAt: stale,
           stockState: "IN_STOCK",
           sourceName: "Elryan",
+          nativeCurrency: "IQD",
+          nativeAmount: 1_000_000,
+          exchangeRate: 1.0,
+          rateTimestamp: null,
         },
       ],
       30,
@@ -97,6 +117,21 @@ describe("verification engine", () => {
           observedAt: now,
           stockState: "IN_STOCK",
           sourceName: "Elryan",
+          nativeCurrency: "IQD",
+          nativeAmount: 1_850_000,
+          exchangeRate: 1.0,
+          rateTimestamp: null,
+        },
+        {
+          id: "ref2",
+          observedPriceIqd: 1_850_000,
+          observedAt: now,
+          stockState: "IN_STOCK",
+          sourceName: "Miswag",
+          nativeCurrency: "IQD",
+          nativeAmount: 1_850_000,
+          exchangeRate: 1.0,
+          rateTimestamp: null,
         },
       ],
       matchConfidence: 0.95,
@@ -118,6 +153,10 @@ describe("verification engine", () => {
           observedAt: now,
           stockState: "IN_STOCK",
           sourceName: "Elryan",
+          nativeCurrency: "IQD",
+          nativeAmount: 1_850_000,
+          exchangeRate: 1.0,
+          rateTimestamp: null,
         },
       ],
       matchConfidence: 0.95,
@@ -136,6 +175,31 @@ describe("verification engine", () => {
     });
 
     expect(decision.result).toBe("MANUAL_REVIEW");
+  });
+
+  it("sends to manual review when quorum is not met (only 1 source)", () => {
+    const decision = runVerification({
+      listing: { id: "l1", sellerPriceIqd: 900_000, title: "Samsung Galaxy S24 Ultra 256GB" },
+      category: baseCategory,
+      canonicalProduct: { brand: "Samsung", model: "Galaxy S24 Ultra 256GB" },
+      retailReferences: [
+        {
+          id: "ref1",
+          observedPriceIqd: 1_850_000,
+          observedAt: now,
+          stockState: "IN_STOCK",
+          sourceName: "Elryan",
+          nativeCurrency: "IQD",
+          nativeAmount: 1_850_000,
+          exchangeRate: 1.0,
+          rateTimestamp: null,
+        },
+      ],
+      matchConfidence: 0.95,
+    });
+
+    expect(decision.result).toBe("MANUAL_REVIEW");
+    expect(decision.message).toContain("Quorum not met");
   });
 });
 
