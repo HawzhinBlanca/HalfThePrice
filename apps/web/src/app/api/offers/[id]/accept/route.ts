@@ -24,19 +24,39 @@ export async function POST(
     return localizedError("ORDER_INVALID", 400, request);
   }
 
-  const updated = await prisma.offer.update({
-    where: { id: offerId },
-    data: { status: "ACCEPTED" },
-  });
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const updateResult = await tx.offer.updateMany({
+        where: { id: offerId, status: "PENDING" },
+        data: { status: "ACCEPTED" },
+      });
 
-  await prisma.auditEvent.create({
-    data: {
-      actorId: auth.user.id,
-      objectType: "offer",
-      objectId: offerId,
-      action: "OFFER_ACCEPTED",
-    },
-  });
+      if (updateResult.count === 0) {
+        throw new Error("OFFER_NOT_PENDING");
+      }
 
-  return NextResponse.json(updated);
+      const updatedOffer = await tx.offer.findUnique({
+        where: { id: offerId },
+      });
+
+      await tx.auditEvent.create({
+        data: {
+          actorId: auth.user.id,
+          objectType: "offer",
+          objectId: offerId,
+          action: "OFFER_ACCEPTED",
+        },
+      });
+
+      return updatedOffer;
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    const err = error as { message?: string };
+    if (err.message === "OFFER_NOT_PENDING") {
+      return localizedError("ORDER_INVALID", 400, request);
+    }
+    throw error;
+  }
 }

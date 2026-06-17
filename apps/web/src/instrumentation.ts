@@ -7,7 +7,13 @@ export async function register() {
   }
 
   // Boot-time environment variable validation
-  const requiredEnv = ["DATABASE_URL", "NEXTAUTH_SECRET", "PAYMENT_WEBHOOK_SECRET"];
+  const requiredEnv = [
+    "DATABASE_URL",
+    "NEXTAUTH_SECRET",
+    "PAYMENT_WEBHOOK_SECRET",
+    "CENTRIFUGO_TOKEN_SECRET",
+    "CENTRIFUGO_API_KEY"
+  ];
   
   for (const envName of requiredEnv) {
     const value = process.env[envName];
@@ -22,6 +28,7 @@ export async function register() {
       PAYMENT_WEBHOOK_SECRET: "change-me-for-payment-webhooks",
       CRON_SECRET: "change-me-for-stale-listing-cron",
       CENTRIFUGO_TOKEN_SECRET: "htp_centrifugo_dev_secret",
+      CENTRIFUGO_API_KEY: "htp_centrifugo_api_key",
     };
 
     for (const [envName, defaultValue] of Object.entries(insecureDefaults)) {

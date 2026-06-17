@@ -1,11 +1,23 @@
 import { SignJWT } from "jose";
 
 export function getCentrifugoConfig() {
+  const isProduction = process.env.NODE_ENV === "production";
+  
+  const tokenSecret = process.env.CENTRIFUGO_TOKEN_SECRET;
+  if (!tokenSecret && isProduction) {
+    throw new Error("CENTRIFUGO_TOKEN_SECRET environment variable is missing in production.");
+  }
+  
+  const apiKey = process.env.CENTRIFUGO_API_KEY;
+  if (!apiKey && isProduction) {
+    throw new Error("CENTRIFUGO_API_KEY environment variable is missing in production.");
+  }
+
   return {
     apiUrl: process.env.CENTRIFUGO_API_URL ?? "http://localhost:8000",
     wsUrl: process.env.NEXT_PUBLIC_CENTRIFUGO_WS_URL ?? "ws://localhost:8000/connection/websocket",
-    tokenSecret: process.env.CENTRIFUGO_TOKEN_SECRET ?? "htp_centrifugo_dev_secret",
-    apiKey: process.env.CENTRIFUGO_API_KEY ?? "htp_centrifugo_api_key",
+    tokenSecret: tokenSecret ?? "htp_centrifugo_dev_secret",
+    apiKey: apiKey ?? "htp_centrifugo_api_key",
   };
 }
 

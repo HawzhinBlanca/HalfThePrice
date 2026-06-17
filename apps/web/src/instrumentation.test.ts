@@ -21,6 +21,7 @@ describe("boot-time environment variable validation", () => {
     process.env.PAYMENT_WEBHOOK_SECRET = "secure-webhook-secret-1234567890";
     process.env.CRON_SECRET = "secure-cron-secret-1234567890";
     process.env.CENTRIFUGO_TOKEN_SECRET = "secure-centrifugo-secret-1234567890";
+    process.env.CENTRIFUGO_API_KEY = "secure-centrifugo-api-key-1234567890";
 
     await expect(register()).resolves.not.toThrow();
   });
@@ -46,6 +47,8 @@ describe("boot-time environment variable validation", () => {
     (process.env as any).NODE_ENV = "production";
     process.env.DATABASE_URL = "postgresql://user:pass@host/db";
     process.env.NEXTAUTH_SECRET = "secure-nextauth-secret-1234567890";
+    process.env.CENTRIFUGO_TOKEN_SECRET = "secure-centrifugo-secret-1234567890";
+    process.env.CENTRIFUGO_API_KEY = "secure-centrifugo-api-key-1234567890";
     // PAYMENT_WEBHOOK_SECRET is missing
     delete process.env.PAYMENT_WEBHOOK_SECRET;
 
@@ -57,6 +60,8 @@ describe("boot-time environment variable validation", () => {
     process.env.DATABASE_URL = "postgresql://user:pass@host/db";
     process.env.NEXTAUTH_SECRET = "change-me-in-production-use-openssl-rand-base64-32"; // Insecure default
     process.env.PAYMENT_WEBHOOK_SECRET = "secure-webhook-secret-1234567890";
+    process.env.CENTRIFUGO_TOKEN_SECRET = "secure-centrifugo-secret-1234567890";
+    process.env.CENTRIFUGO_API_KEY = "secure-centrifugo-api-key-1234567890";
 
     await expect(register()).rejects.toThrow("CRITICAL CONFIG ERROR: Environment variable NEXTAUTH_SECRET is set to the insecure default value. Please change it in production.");
   });

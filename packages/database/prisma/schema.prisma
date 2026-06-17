@@ -377,3 +377,13 @@ model AuditEvent {
   @@index([objectType, objectId])
   @@map("audit_events")
 }
+
+model WebhookEvent {
+  id              String   @id @default(cuid())
+  provider        String
+  providerEventId String   @unique
+  payload         String
+  createdAt       DateTime @default(now())
+
+  @@map("webhook_events")
+}

@@ -37,6 +37,8 @@ export async function submitListingForVerification(
   }
 
   let canonicalProduct = listing.canonicalProduct;
+  let didMatchCanonical = false;
+  let matchedCanonicalId: string | null = null;
 
   if (!canonicalProduct) {
     const candidates = await prisma.canonicalProduct.findMany({
@@ -56,11 +58,9 @@ export async function submitListingForVerification(
     }
 
     if (bestMatch && bestConfidence >= 0.5) {
-      await prisma.listing.update({
-        where: { id: listingId },
-        data: { canonicalProductId: bestMatch.id },
-      });
       canonicalProduct = bestMatch;
+      didMatchCanonical = true;
+      matchedCanonicalId = bestMatch.id;
     }
   }
 
@@ -96,47 +96,58 @@ export async function submitListingForVerification(
     matchConfidence,
   });
 
-  await prisma.priceVerificationRun.create({
-    data: {
-      listingId: listing.id,
-      matchConfidence: decision.matchConfidence,
-      selectedReferenceId: decision.selectedReferenceId,
-      verifiedRetailIqd: decision.verifiedRetailIqd,
-      computedCapIqd: decision.computedCapIqd,
-      priceCapRatio: decision.priceCapRatio ?? 0.5,
-      matchConfidenceThreshold: decision.matchConfidenceThreshold ?? 0.85,
-      retailTtlDays: decision.retailTtlDays ?? 30,
-      parserVersion: decision.parserVersion ?? "1.0.0",
-      result: decision.result,
-      message: decision.message,
-    },
-  });
-
   const newStatus = resolveListingStatusFromVerification(decision.result);
 
-  const updatedListing = await prisma.listing.update({
-    where: { id: listingId },
-    data: {
-      status: newStatus,
-      publishedAt: newStatus === "LIVE" ? new Date() : null,
-    },
-    include: {
-      category: true,
-      canonicalProduct: true,
-    },
+  const updatedListing = await prisma.$transaction(async (tx) => {
+    if (didMatchCanonical && matchedCanonicalId) {
+      await tx.listing.update({
+        where: { id: listingId },
+        data: { canonicalProductId: matchedCanonicalId },
+      });
+    }
+
+    await tx.priceVerificationRun.create({
+      data: {
+        listingId: listing.id,
+        matchConfidence: decision.matchConfidence,
+        selectedReferenceId: decision.selectedReferenceId,
+        verifiedRetailIqd: decision.verifiedRetailIqd,
+        computedCapIqd: decision.computedCapIqd,
+        priceCapRatio: decision.priceCapRatio ?? 0.5,
+        matchConfidenceThreshold: decision.matchConfidenceThreshold ?? 0.85,
+        retailTtlDays: decision.retailTtlDays ?? 30,
+        parserVersion: decision.parserVersion ?? "1.0.0",
+        result: decision.result,
+        message: decision.message,
+      },
+    });
+
+    const updated = await tx.listing.update({
+      where: { id: listingId },
+      data: {
+        status: newStatus,
+        publishedAt: newStatus === "LIVE" ? new Date() : null,
+      },
+      include: {
+        category: true,
+        canonicalProduct: true,
+      },
+    });
+
+    await tx.auditEvent.create({
+      data: {
+        actorId: sellerId,
+        objectType: "listing",
+        objectId: listingId,
+        action: "VERIFICATION_SUBMITTED",
+        after: { result: decision.result, status: newStatus },
+      },
+    });
+
+    return updated;
   });
 
   await syncListingToSearch(updatedListing);
-
-  await prisma.auditEvent.create({
-    data: {
-      actorId: sellerId,
-      objectType: "listing",
-      objectId: listingId,
-      action: "VERIFICATION_SUBMITTED",
-      after: { result: decision.result, status: newStatus },
-    },
-  });
 
   return { success: true, status: newStatus, message: decision.message };
 }

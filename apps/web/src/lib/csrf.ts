@@ -6,7 +6,11 @@ import { CSRF_COOKIE, CSRF_HEADER } from "./constants";
 export { CSRF_COOKIE, CSRF_HEADER };
 
 function getSecret(): string {
-  return process.env.NEXTAUTH_SECRET ?? "default_development_secret_key_placeholder";
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error("NEXTAUTH_SECRET environment variable is missing.");
+  }
+  return secret;
 }
 
 export function generateCsrfToken(): string {

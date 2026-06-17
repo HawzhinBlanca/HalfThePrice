@@ -10,23 +10,28 @@ export interface SessionUser {
 }
 
 const COOKIE_NAME = "htp_session";
-const secret = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET ?? "default_development_secret_key_placeholder",
-);
+
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error("NEXTAUTH_SECRET environment variable is missing.");
+  }
+  return new TextEncoder().encode(secret);
+}
 
 export async function createSessionToken(user: SessionUser): Promise<string> {
   return new SignJWT({ ...user })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(secret);
+    .sign(getJwtSecret());
 }
 
 export async function verifySessionToken(
   token: string,
 ): Promise<SessionUser | null> {
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, getJwtSecret());
     if (
       typeof payload.id !== "string" ||
       typeof payload.email !== "string" ||
