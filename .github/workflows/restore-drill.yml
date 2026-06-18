@@ -1,0 +1,75 @@
+name: Database Restore Drill
+
+on:
+  schedule:
+    # Run weekly at midnight on Sunday
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  restore-drill:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: htp
+          POSTGRES_PASSWORD: htp_dev_password
+          POSTGRES_DB: half_the_price
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U htp -d half_the_price"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://htp:htp_dev_password@localhost:5432/half_the_price?schema=public
+      PGPASSWORD: htp_dev_password
+      PGUSER: htp
+      PGPORT: 5432
+      PGHOST: localhost
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Initialize source database (db:push)
+        run: pnpm db:push
+
+      - name: Seed source database
+        run: pnpm db:seed
+
+      - name: Run logical database backup
+        run: |
+          mkdir -p ./backup
+          BACKUP_DIR=./backup ./deploy/restore-drills/backup.sh
+
+      - name: Run database restore to a temporary DB
+        run: |
+          BACKUP_DIR=./backup RESTORE_DB=half_the_price_restored ./deploy/restore-drills/restore.sh
+
+      - name: Verify schema migration drift on restored database
+        run: |
+          DATABASE_URL="postgresql://htp:htp_dev_password@localhost:5432/half_the_price_restored?schema=public" npx prisma migrate diff \
+            --from-schema-datamodel packages/database/prisma/schema.prisma \
+            --to-schema-datasource packages/database/prisma/schema.prisma \
+            --exit-code
+
+      - name: Run price cap audit on restored database
+        run: |
+          DATABASE_URL="postgresql://htp:htp_dev_password@localhost:5432/half_the_price_restored?schema=public" npx tsx deploy/restore-drills/cap-audit.ts

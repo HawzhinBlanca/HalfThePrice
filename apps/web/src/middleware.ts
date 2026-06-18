@@ -15,9 +15,26 @@ function safeCompare(a: string, b: string): boolean {
   return result === 0;
 }
 
-async function validateCsrfToken(token: string, secret: string): Promise<boolean> {
-  const [nonce, signature] = token.split(".");
+async function validateCsrfToken(token: string, secretString: string): Promise<boolean> {
+  const parts = token.split(":");
+  let kid = "0";
+  let body = "";
+
+  if (parts.length === 2) {
+    kid = parts[0] || "0";
+    body = parts[1] || "";
+  } else {
+    body = token;
+  }
+
+  const [nonce, signature] = body.split(".");
   if (!nonce || !signature) return false;
+
+  const secrets = secretString.split(",").map((s) => s.trim()).filter(Boolean);
+  const keyIndex = parseInt(kid, 10);
+  const secret = secrets[keyIndex] || secrets[0];
+
+  if (!secret) return false;
 
   const encoder = new TextEncoder();
   try {
@@ -31,11 +48,12 @@ async function validateCsrfToken(token: string, secret: string): Promise<boolean
     const sigBytes = new Uint8Array(
       signature.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
     );
+    const verifyPayload = parts.length === 2 ? `${kid}:${nonce}` : nonce;
     return crypto.subtle.verify(
       "HMAC",
       key,
       sigBytes,
-      encoder.encode(nonce)
+      encoder.encode(verifyPayload)
     );
   } catch {
     return false;
@@ -103,14 +121,25 @@ export async function middleware(request: NextRequest) {
     const isRateLimitedEndpoint =
       pathname === "/api/listings" ||
       pathname.startsWith("/api/chat/") ||
-      pathname.startsWith("/api/offers/");
+      pathname.startsWith("/api/offers/") ||
+      pathname === "/api/orders" ||
+      pathname === "/api/cap-estimate" ||
+      pathname === "/api/retail/refresh";
 
     if (isRateLimitedEndpoint) {
-      const xForwardedFor = request.headers.get("x-forwarded-for");
-      const firstIp = xForwardedFor ? xForwardedFor.split(",")[0] : undefined;
-      const clientIp = request.headers.get("fly-client-ip") || firstIp?.trim() || "127.0.0.1";
+      const flyClientIp = request.headers.get("fly-client-ip");
+      const clientIp = process.env.NODE_ENV === "production"
+        ? (flyClientIp || "127.0.0.1")
+        : (flyClientIp || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1");
       const key = `${clientIp}:${pathname}`;
-      const internalSecret = process.env.NEXTAUTH_SECRET ?? "shared_internal_secret";
+      const internalSecret = process.env.NEXTAUTH_SECRET;
+
+      if (!internalSecret) {
+        return withCorrelation(NextResponse.json(
+          { error: "Internal Server Error: Missing auth secret." },
+          { status: 500 }
+        ));
+      }
 
       try {
         const checkUrl = new URL("/api/internal/rate-limit", request.url);
@@ -130,7 +159,11 @@ export async function middleware(request: NextRequest) {
           ));
         }
       } catch (err) {
-        console.error("Failed to check rate limit:", err);
+        console.error("Failed to check rate limit (fail-closed protection triggered):", err);
+        return withCorrelation(NextResponse.json(
+          { error: "Service temporarily unavailable.", code: "RATE_LIMIT_SERVICE_FAILURE" },
+          { status: 503 }
+        ));
       }
     }
   }

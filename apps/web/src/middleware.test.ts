@@ -110,4 +110,17 @@ describe("global middleware", () => {
     const data = await res.json();
     expect(data.code).toBe("RATE_LIMIT_EXCEEDED");
   });
+
+  it("fails closed and returns 503 if the rate limit service fails", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("Network connection lost"));
+
+    const req = new NextRequest("http://localhost/api/listings", {
+      method: "GET",
+    });
+
+    const res: any = await middleware(req);
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.code).toBe("RATE_LIMIT_SERVICE_FAILURE");
+  });
 });

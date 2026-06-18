@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-BACKUP_DIR="/var/backups/postgres"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/postgres}"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 DATABASE_NAME="half_the_price"
 PG_PORT=${PGPORT:-5432}

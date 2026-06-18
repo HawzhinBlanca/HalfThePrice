@@ -34,10 +34,17 @@ export function checkRateLimit(
 }
 
 export function getClientIp(request: Request): string {
+  const flyClientIp = request.headers.get("fly-client-ip");
+  if (flyClientIp) return flyClientIp;
+
+  if (process.env.NODE_ENV === "production") {
+    return "127.0.0.1";
+  }
+
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) {
     const first = forwarded.split(",")[0]?.trim();
     if (first) return first;
   }
-  return request.headers.get("x-real-ip") ?? "unknown";
+  return request.headers.get("x-real-ip") ?? "127.0.0.1";
 }

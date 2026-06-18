@@ -1,0 +1,29 @@
+groups:
+  - name: halftheprice-alerts
+    rules:
+      - alert: DatabaseDown
+        expr: htp_database_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection lost"
+          description: "Postgres database is unreachable from the web application."
+
+      - alert: PriceCapViolationsDetected
+        expr: htp_price_cap_violations_count > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Price cap violations detected"
+          description: "There are currently {{ $value }} live listings violating the half-price cap rules."
+
+      - alert: PaymentFailureSpike
+        expr: rate(sentry_events_total{tags_error_type="PaymentError"}[10m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Spike in payment transaction failures"
+          description: "Sentry detected a high rate of PaymentError occurrences in the last 10 minutes."

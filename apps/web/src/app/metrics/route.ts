@@ -8,6 +8,7 @@ export async function GET() {
   const uptime = process.uptime();
 
   let liveListingsCount = 0;
+  let violationsCount = 0;
   let dbUp = 1;
   let errorMsg = "";
 
@@ -17,6 +18,25 @@ export async function GET() {
     liveListingsCount = await prisma.listing.count({
       where: { status: "LIVE" },
     });
+
+    // Query cap violations for Prometheus alerting
+    const liveListings = await prisma.listing.findMany({
+      where: { status: "LIVE" },
+      include: {
+        verificationRuns: {
+          where: { result: "PASS" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
+
+    for (const listing of liveListings) {
+      const latestRun = listing.verificationRuns[0];
+      if (!latestRun || listing.sellerPriceIqd > (latestRun.computedCapIqd ?? 0)) {
+        violationsCount++;
+      }
+    }
   } catch (err) {
     dbUp = 0;
     errorMsg = err instanceof Error ? err.message : "Unreachable";
@@ -37,7 +57,10 @@ export async function GET() {
     `htp_database_up ${dbUp}`,
     `# HELP htp_live_listings_count Count of published LIVE listings in the marketplace.`,
     `# TYPE htp_live_listings_count gauge`,
-    `htp_live_listings_count ${liveListingsCount}`
+    `htp_live_listings_count ${liveListingsCount}`,
+    `# HELP htp_price_cap_violations_count Count of LIVE listings violating the half-price cap.`,
+    `# TYPE htp_price_cap_violations_count gauge`,
+    `htp_price_cap_violations_count ${violationsCount}`
   ];
 
   if (errorMsg) {

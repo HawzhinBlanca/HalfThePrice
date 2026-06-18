@@ -5,28 +5,49 @@ import { CSRF_COOKIE, CSRF_HEADER } from "./constants";
 
 export { CSRF_COOKIE, CSRF_HEADER };
 
-function getSecret(): string {
+function getSecrets(): string[] {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) {
     throw new Error("NEXTAUTH_SECRET environment variable is missing.");
   }
-  return secret;
+  return secret.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
 export function generateCsrfToken(): string {
   const nonce = randomBytes(16).toString("hex");
-  const signature = createHmac("sha256", getSecret())
-    .update(nonce)
+  const secrets = getSecrets();
+  const primarySecret = secrets[0] || "fallback";
+  const kid = "0"; // Primary key version
+  const signature = createHmac("sha256", primarySecret)
+    .update(`${kid}:${nonce}`)
     .digest("hex");
-  return `${nonce}.${signature}`;
+  return `${kid}:${nonce}.${signature}`;
 }
 
 export function validateCsrfToken(token: string): boolean {
-  const [nonce, signature] = token.split(".");
+  const parts = token.split(":");
+  let kid = "0";
+  let body = "";
+
+  if (parts.length === 2) {
+    kid = parts[0] || "0";
+    body = parts[1] || "";
+  } else {
+    // Legacy fallback (no kid prefix)
+    body = token;
+  }
+
+  const [nonce, signature] = body.split(".");
   if (!nonce || !signature) return false;
 
-  const expected = createHmac("sha256", getSecret())
-    .update(nonce)
+  const secrets = getSecrets();
+  const keyIndex = parseInt(kid, 10);
+  const secret = secrets[keyIndex] || secrets[0]; // Fallback to primary if out of range
+
+  if (!secret) return false;
+
+  const expected = createHmac("sha256", secret)
+    .update(parts.length === 2 ? `${kid}:${nonce}` : nonce)
     .digest("hex");
 
   try {

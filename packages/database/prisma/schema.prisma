@@ -77,6 +77,8 @@ enum OrderStatus {
   CANCELLED
   FAILED
   COD_PENDING
+  DISPUTED
+  REFUNDED
 }
 
 enum PaymentMethod {
@@ -306,6 +308,7 @@ model Order {
   buyer         User           @relation("BuyerOrders", fields: [buyerId], references: [id])
   seller        User           @relation("SellerOrders", fields: [sellerId], references: [id])
   paymentIntent PaymentIntent?
+  dispute       Dispute?
 
   @@index([buyerId])
   @@index([sellerId])
@@ -402,5 +405,19 @@ model FeatureFlag {
   updatedAt DateTime @updatedAt
 
   @@map("feature_flags")
+}
+
+model Dispute {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  reason      String
+  status      String   @default("OPEN") // OPEN, RESOLVED, REJECTED
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("disputes")
 }
 
