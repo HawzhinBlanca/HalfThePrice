@@ -8,6 +8,8 @@ export interface RetailRefreshResult {
   sources: string[];
 }
 
+import { isDatabaseFeatureEnabled } from "./features";
+
 export async function refreshRetailReferencesForTitle(
   productTitle: string,
   canonicalProductId?: string,
@@ -22,13 +24,21 @@ export async function refreshRetailReferencesForTitle(
     const normalized = productTitle.toLowerCase();
     const match = candidates.find(
       (p) =>
-        normalized.includes(p.brand.toLowerCase()) ||
-        normalized.includes(p.model.toLowerCase()),
+          normalized.includes(p.brand.toLowerCase()) ||
+          normalized.includes(p.model.toLowerCase()),
     );
     productId = match?.id;
   }
 
   if (!productId) return null;
+
+  if (!(await isDatabaseFeatureEnabled("CRAWLER_LIVE"))) {
+    return {
+      canonicalProductId: productId,
+      inserted: 0,
+      sources: [],
+    };
+  }
 
   const observations = await fetchRetailReferences(productTitle);
   const now = new Date();

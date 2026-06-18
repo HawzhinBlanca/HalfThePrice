@@ -67,3 +67,18 @@ export async function requireMutatingAuth(
   if (csrfError) return csrfError;
   return requireAuth(roles);
 }
+
+import { correlationStorage } from "@htp/database";
+import { randomUUID } from "node:crypto";
+
+export function withCorrelation<T>(
+  request: NextRequest,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const correlationId =
+    request.headers.get("x-correlation-id") ||
+    request.headers.get("x-request-id") ||
+    randomUUID();
+  return correlationStorage.run({ correlationId }, fn);
+}
+

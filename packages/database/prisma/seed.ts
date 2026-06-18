@@ -346,13 +346,29 @@ async function main() {
 
   void draftListing;
 
+  // Seed default feature flags
+  console.log("Seeding default feature flags...");
+  const defaultFlags = [
+    { key: "CHAT", enabled: true },
+    { key: "CHECKOUT", enabled: true },
+    { key: "ONBOARDING", enabled: true },
+    { key: "CRAWLER_LIVE", enabled: true },
+  ];
+  for (const flag of defaultFlags) {
+    await prisma.featureFlag.upsert({
+      where: { key: flag.key },
+      update: {},
+      create: flag,
+    });
+  }
+
   await prisma.auditEvent.create({
     data: {
       actorId: admin.id,
       objectType: "system",
       objectId: "seed",
       action: "SEED_COMPLETE",
-      after: { users: 4, listings: 5, products: 3 },
+      after: { users: 4, listings: 5, products: 3, featureFlags: 4 },
     },
   });
 

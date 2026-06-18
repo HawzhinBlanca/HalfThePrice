@@ -11,10 +11,12 @@ export function hashStringToInt(str: string): number {
 }
 
 export async function acquireAdvisoryLock(
-  tx: Omit<
-    Prisma.TransactionClient,
-    "$transaction" | "$extends" | "$on" | "$use" | "$disconnect" | "$connect"
-  >,
+  tx: {
+    $executeRaw: (
+      strings: TemplateStringsArray,
+      ...values: any[]
+    ) => Promise<any>;
+  },
   key: string,
 ): Promise<void> {
   const lockId = hashStringToInt(key);

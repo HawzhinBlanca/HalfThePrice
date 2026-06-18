@@ -21,6 +21,11 @@ vi.mock("@htp/database", () => ({
   prisma: {
     $transaction: vi.fn((callback) => callback(mockTx)),
   },
+  correlationStorage: {
+    run: vi.fn((ctx, callback) => callback()),
+    getStore: vi.fn(() => ({ correlationId: "test-correlation-id" })),
+  },
+  getCorrelationId: vi.fn(() => "test-correlation-id"),
 }));
 
 vi.mock("@htp/payments", () => ({

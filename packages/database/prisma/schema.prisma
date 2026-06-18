@@ -395,3 +395,12 @@ model RateLimit {
 
   @@map("rate_limits")
 }
+
+model FeatureFlag {
+  key       String   @id
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@map("feature_flags")
+}
+

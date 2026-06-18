@@ -43,6 +43,18 @@ async function validateCsrfToken(token: string, secret: string): Promise<boolean
 }
 
 export async function middleware(request: NextRequest) {
+  const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-correlation-id", correlationId);
+
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const withCorrelation = (res: any) => {
+    if (res && res.headers) {
+      res.headers.set("x-correlation-id", correlationId);
+    }
+    return res;
+  };
+
   const { pathname } = request.nextUrl;
   const method = request.method;
 
@@ -61,27 +73,27 @@ export async function middleware(request: NextRequest) {
       const secret = process.env.NEXTAUTH_SECRET;
 
       if (!secret) {
-        return NextResponse.json(
+        return withCorrelation(NextResponse.json(
           { error: "Internal Server Error: Missing auth secret." },
           { status: 500 }
-        );
+        ));
       }
 
       if (!cookieToken || !headerToken) {
-        return NextResponse.json(
+        return withCorrelation(NextResponse.json(
           { error: "CSRF token missing.", code: "CSRF_INVALID" },
           { status: 403 }
-        );
+        ));
       }
 
       const isCookieValid = await validateCsrfToken(cookieToken, secret);
       const isHeaderValid = await validateCsrfToken(headerToken, secret);
 
       if (!isCookieValid || !isHeaderValid || !safeCompare(cookieToken, headerToken)) {
-        return NextResponse.json(
+        return withCorrelation(NextResponse.json(
           { error: "CSRF token invalid.", code: "CSRF_INVALID" },
           { status: 403 }
-        );
+        ));
       }
     }
   }
@@ -112,10 +124,10 @@ export async function middleware(request: NextRequest) {
         });
 
         if (res.status === 429) {
-          return NextResponse.json(
+          return withCorrelation(NextResponse.json(
             { error: "Too Many Requests.", code: "RATE_LIMIT_EXCEEDED" },
             { status: 429 }
-          );
+          ));
         }
       } catch (err) {
         console.error("Failed to check rate limit:", err);
@@ -123,7 +135,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  return withCorrelation(NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  }));
 }
 
 export const config = {

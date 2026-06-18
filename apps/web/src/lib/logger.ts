@@ -1,11 +1,15 @@
+import { getCorrelationId } from "@htp/database";
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type LogLevel = "info" | "warn" | "error" | "debug";
 
 function log(level: LogLevel, message: string, meta?: Record<string, any>) {
+  const correlationId = getCorrelationId();
   const logObj = {
     timestamp: new Date().toISOString(),
     level,
     message,
+    ...(correlationId ? { correlationId } : {}),
     ...meta,
   };
 
