@@ -47,7 +47,7 @@ describe("payment webhook route", () => {
     const req = new NextRequest("http://localhost/api/payments/webhook/zaincash", {
       method: "POST",
       body: JSON.stringify({ orderId: "123" }),
-      headers: { "x-htp-signature": "bad" },
+      headers: { "x-htp-signature": "bad", "x-htp-timestamp": String(Math.floor(Date.now() / 1000)) },
     });
     const res = await POST(req, { params: Promise.resolve({ provider: "zaincash" }) });
     expect(res.status).toBe(401);
@@ -61,6 +61,7 @@ describe("payment webhook route", () => {
     const req = new NextRequest("http://localhost/api/payments/webhook/zaincash", {
       method: "POST",
       body: JSON.stringify({ orderId: "123" }),
+      headers: { "x-htp-timestamp": String(Math.floor(Date.now() / 1000)) },
     });
     const res = await POST(req, { params: Promise.resolve({ provider: "zaincash" }) });
     expect(res.status).toBe(404);
@@ -80,6 +81,7 @@ describe("payment webhook route", () => {
     const req = new NextRequest("http://localhost/api/payments/webhook/zaincash", {
       method: "POST",
       body: JSON.stringify({ orderId: "123", status: "SUCCEEDED", providerRef: "new_ref" }),
+      headers: { "x-htp-timestamp": String(Math.floor(Date.now() / 1000)) },
     });
     const res = await POST(req, { params: Promise.resolve({ provider: "zaincash" }) });
     
@@ -108,6 +110,7 @@ describe("payment webhook route", () => {
     const req = new NextRequest("http://localhost/api/payments/webhook/zaincash", {
       method: "POST",
       body: JSON.stringify({ orderId: "123", status: "SUCCEEDED", providerRef: "new_ref" }),
+      headers: { "x-htp-timestamp": String(Math.floor(Date.now() / 1000)) },
     });
     const res = await POST(req, { params: Promise.resolve({ provider: "zaincash" }) });
     
@@ -127,6 +130,7 @@ describe("payment webhook route", () => {
     const req = new NextRequest("http://localhost/api/payments/webhook/zaincash", {
       method: "POST",
       body: JSON.stringify({ orderId: "123", status: "SUCCEEDED", providerRef: "new_ref" }),
+      headers: { "x-htp-timestamp": String(Math.floor(Date.now() / 1000)) },
     });
     const res = await POST(req, { params: Promise.resolve({ provider: "zaincash" }) });
 
@@ -134,5 +138,16 @@ describe("payment webhook route", () => {
     const data = await res.json();
     expect(data.message).toContain("Event already processed");
     expect(mockTx.order.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 if timestamp header is missing", async () => {
+    const req = new NextRequest("http://localhost/api/payments/webhook/zaincash", {
+      method: "POST",
+      body: JSON.stringify({ orderId: "123", status: "SUCCEEDED", providerRef: "new_ref" }),
+    });
+    const res = await POST(req, { params: Promise.resolve({ provider: "zaincash" }) });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe("Missing timestamp header.");
   });
 });

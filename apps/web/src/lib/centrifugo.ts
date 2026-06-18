@@ -16,8 +16,8 @@ export function getCentrifugoConfig() {
   return {
     apiUrl: process.env.CENTRIFUGO_API_URL ?? "http://localhost:8000",
     wsUrl: process.env.NEXT_PUBLIC_CENTRIFUGO_WS_URL ?? "ws://localhost:8000/connection/websocket",
-    tokenSecret: tokenSecret ?? "htp_centrifugo_dev_secret",
-    apiKey: apiKey ?? "htp_centrifugo_api_key",
+    tokenSecret: isProduction ? tokenSecret! : (tokenSecret ?? "htp_centrifugo_dev_secret"),
+    apiKey: isProduction ? apiKey! : (apiKey ?? "htp_centrifugo_api_key"),
   };
 }
 

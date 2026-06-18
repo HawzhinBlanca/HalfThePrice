@@ -22,9 +22,14 @@ export async function POST(
 
   const rawBody = await request.text();
   const signature = request.headers.get("x-htp-signature") ?? "";
+  const timestamp = request.headers.get("x-htp-timestamp");
 
-  if (!verifyWebhookSignature(rawBody, signature, secret)) {
-    return jsonError("Invalid signature.", 401);
+  if (!timestamp) {
+    return jsonError("Missing timestamp header.", 400);
+  }
+
+  if (!verifyWebhookSignature(rawBody, signature, secret, timestamp)) {
+    return jsonError("Invalid signature or timestamp.", 401);
   }
 
   const payload = JSON.parse(rawBody) as {

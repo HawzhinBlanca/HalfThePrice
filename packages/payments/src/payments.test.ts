@@ -63,4 +63,31 @@ describe("webhook signature verification", () => {
       verifyWebhookSignature(payload, "bad-signature", "secret"),
     ).toBe(false);
   });
+
+  it("verifies signatures with valid timestamps", () => {
+    const { createHmac } = require("node:crypto");
+    const payload = JSON.stringify({ orderId: "ord_1", status: "SUCCEEDED" });
+    const secret = "test-webhook-secret";
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = createHmac("sha256", secret).update(`${timestamp}.${payload}`).digest("hex");
+    expect(verifyWebhookSignature(payload, signature, secret, timestamp)).toBe(true);
+  });
+
+  it("rejects signatures with expired timestamps", () => {
+    const { createHmac } = require("node:crypto");
+    const payload = JSON.stringify({ orderId: "ord_1", status: "SUCCEEDED" });
+    const secret = "test-webhook-secret";
+    const timestamp = String(Math.floor(Date.now() / 1000) - 301);
+    const signature = createHmac("sha256", secret).update(`${timestamp}.${payload}`).digest("hex");
+    expect(verifyWebhookSignature(payload, signature, secret, timestamp)).toBe(false);
+  });
+
+  it("rejects signatures with invalid timestamp strings", () => {
+    const { createHmac } = require("node:crypto");
+    const payload = JSON.stringify({ orderId: "ord_1", status: "SUCCEEDED" });
+    const secret = "test-webhook-secret";
+    const timestamp = "not-a-number";
+    const signature = createHmac("sha256", secret).update(`${timestamp}.${payload}`).digest("hex");
+    expect(verifyWebhookSignature(payload, signature, secret, timestamp)).toBe(false);
+  });
 });

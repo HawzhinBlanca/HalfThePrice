@@ -12,7 +12,8 @@ export async function register() {
     "NEXTAUTH_SECRET",
     "PAYMENT_WEBHOOK_SECRET",
     "CENTRIFUGO_TOKEN_SECRET",
-    "CENTRIFUGO_API_KEY"
+    "CENTRIFUGO_API_KEY",
+    "CRON_SECRET"
   ];
   
   for (const envName of requiredEnv) {

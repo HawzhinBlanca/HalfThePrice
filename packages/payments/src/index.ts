@@ -143,8 +143,23 @@ export function verifyWebhookSignature(
   payload: string,
   signature: string,
   secret: string,
+  timestamp?: string,
 ): boolean {
-  const expected = signPayload(payload, secret);
+  let expected: string;
+  if (timestamp) {
+    const ts = parseInt(timestamp, 10);
+    if (isNaN(ts)) {
+      return false;
+    }
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - ts) > 300) {
+      return false;
+    }
+    expected = signPayload(`${timestamp}.${payload}`, secret);
+  } else {
+    expected = signPayload(payload, secret);
+  }
+
   try {
     return timingSafeEqual(
       Buffer.from(signature),
