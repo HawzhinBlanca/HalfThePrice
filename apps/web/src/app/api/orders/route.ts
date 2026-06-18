@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma, acquireAdvisoryLock } from "@htp/database";
-import {
-  getPaymentProvider,
-  type PaymentProviderId,
-} from "@htp/payments";
+import { type PaymentProviderId } from "@htp/payments";
+import { createOrderFromOffer } from "@htp/core";
 import { requireMutatingAuth, localizedError } from "@/lib/api";
+import { isFeatureEnabled } from "@/lib/features";
 
 const schema = z.object({
   offerId: z.string().min(1),
@@ -13,6 +11,10 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  if (!isFeatureEnabled("CHECKOUT")) {
+    return new Response("Checkout is temporarily disabled.", { status: 503 });
+  }
+
   const auth = await requireMutatingAuth(request, ["BUYER", "ADMIN"]);
   if (auth instanceof NextResponse) return auth;
 
@@ -23,102 +25,29 @@ export async function POST(request: NextRequest) {
     return localizedError("INVALID_INPUT", 400, request);
   }
 
-  const offer = await prisma.offer.findUnique({
-    where: { id: parsed.data.offerId },
-    include: {
-      listing: true,
-      order: true,
-      buyer: { select: { email: true } },
-    },
-  });
+  try {
+    const paymentMethod = parsed.data.paymentMethod as PaymentProviderId;
+    const result = await createOrderFromOffer(
+      parsed.data.offerId,
+      auth.user.id,
+      paymentMethod
+    );
 
-  if (!offer || offer.buyerId !== auth.user.id) {
-    return localizedError("NOT_FOUND", 404, request);
+    return NextResponse.json(
+      {
+        order: result.order,
+        payment: result.payment,
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    const err = error as { message?: string };
+    if (err.message === "OFFER_NOT_FOUND") {
+      return localizedError("NOT_FOUND", 404, request);
+    }
+    if (err.message === "ORDER_INVALID") {
+      return localizedError("ORDER_INVALID", 400, request);
+    }
+    throw error;
   }
-
-  if (offer.status !== "ACCEPTED") {
-    return localizedError("ORDER_INVALID", 400, request);
-  }
-
-  if (offer.order) {
-    return NextResponse.json(offer.order);
-  }
-
-  const paymentMethod = parsed.data.paymentMethod as PaymentProviderId;
-  const provider = getPaymentProvider(paymentMethod);
-
-  const { confirmedOrder, paymentResult } = await prisma.$transaction(async (tx) => {
-    await acquireAdvisoryLock(tx, `offer_${offer.id}`);
-    const order = await tx.order.create({
-      data: {
-        offerId: offer.id,
-        listingId: offer.listingId,
-        buyerId: offer.buyerId,
-        sellerId: offer.listing.sellerId,
-        amountIqd: offer.amountIqd,
-        status: paymentMethod === "COD" ? "COD_PENDING" : "PENDING_PAYMENT",
-        paymentMethod,
-        codEnabled: paymentMethod === "COD",
-      },
-    });
-
-    const paymentResult = await provider.initializePayment({
-      orderId: order.id,
-      amountIqd: order.amountIqd,
-      buyerEmail: offer.buyer.email,
-    });
-
-    const paymentIntent = await tx.paymentIntent.create({
-      data: {
-        orderId: order.id,
-        provider: paymentMethod,
-        status: paymentResult.status,
-        providerRef: paymentResult.providerRef,
-        sandbox: paymentResult.sandbox,
-        metadata: { message: paymentResult.message },
-      },
-    });
-
-    const finalStatus =
-      paymentResult.status === "SUCCEEDED"
-        ? paymentMethod === "COD"
-          ? "COD_PENDING"
-          : "CONFIRMED"
-        : paymentResult.status === "FAILED"
-          ? "FAILED"
-          : "PAYMENT_PROCESSING";
-
-    const confirmedOrder = await tx.order.update({
-      where: { id: order.id },
-      data: {
-        status: finalStatus,
-        confirmedAt: finalStatus === "CONFIRMED" ? new Date() : null,
-      },
-      include: { paymentIntent: true },
-    });
-
-    await tx.auditEvent.create({
-      data: {
-        actorId: auth.user.id,
-        objectType: "order",
-        objectId: order.id,
-        action: "ORDER_CREATED",
-        after: {
-          status: finalStatus,
-          paymentMethod,
-          sandbox: paymentIntent.sandbox,
-        },
-      },
-    });
-
-    return { confirmedOrder, paymentResult };
-  });
-
-  return NextResponse.json(
-    {
-      order: confirmedOrder,
-      payment: paymentResult,
-    },
-    { status: 201 },
-  );
 }

@@ -64,6 +64,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Supply-chain security audit
+        run: pnpm audit --audit-level=high
+
+      - name: Generate Software Bill of Materials (SBOM)
+        run: |
+          npx -y @cyclonedx/cyclonedx-npm@1.19.2 --output-format JSON --output-file sbom.json
+
       - name: Generate Prisma client
         run: pnpm db:generate
 

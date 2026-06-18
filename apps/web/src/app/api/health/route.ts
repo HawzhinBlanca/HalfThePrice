@@ -36,7 +36,7 @@ export async function GET() {
     };
   }
 
-  const ok = Object.values(checks).every((c) => c.ok || c.message.includes("not configured"));
+  const ok = Object.values(checks).every((c) => c.ok);
 
   return NextResponse.json(
     {

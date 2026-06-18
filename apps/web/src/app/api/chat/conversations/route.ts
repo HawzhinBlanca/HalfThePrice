@@ -6,12 +6,17 @@ import {
   createCentrifugoToken,
 } from "@/lib/centrifugo";
 import { requireAuth, requireMutatingAuth, localizedError } from "@/lib/api";
+import { isFeatureEnabled } from "@/lib/features";
 
 const createSchema = z.object({
   listingId: z.string().min(1),
 });
 
 export async function POST(request: NextRequest) {
+  if (!isFeatureEnabled("CHAT")) {
+    return new Response("Chat is temporarily disabled.", { status: 503 });
+  }
+
   const auth = await requireMutatingAuth(request, ["BUYER", "SELLER", "ADMIN"]);
   if (auth instanceof NextResponse) return auth;
 

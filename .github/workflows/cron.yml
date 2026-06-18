@@ -1,0 +1,17 @@
+name: Stale Listings Cron
+
+on:
+  schedule:
+    - cron: "0 * * * *" # Run every hour
+  workflow_dispatch: # Allow manual trigger via UI
+
+jobs:
+  trigger-cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Cron Endpoint
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -f \
+            https://half-the-price.fly.dev/api/cron/stale-listings

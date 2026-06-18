@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@htp/database";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   const internalSecret = process.env.NEXTAUTH_SECRET;
@@ -60,13 +61,16 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.allowed) {
+      logger.warn("Rate limit triggered", { key, limit });
       return new Response("Too Many Requests", { status: 429 });
     }
 
     return new Response("OK", { status: 200 });
 
   } catch (error) {
-    console.error("Internal rate limit error:", error);
+    logger.error("Internal rate limit error", {
+      error: error instanceof Error ? error.stack || error.message : String(error),
+    });
     return new Response("Internal Server Error", { status: 500 });
   }
 }

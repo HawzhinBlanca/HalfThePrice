@@ -94,8 +94,10 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/api/offers/");
 
     if (isRateLimitedEndpoint) {
-      const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
-      const key = `${ip}:${pathname}`;
+      const xForwardedFor = request.headers.get("x-forwarded-for");
+      const firstIp = xForwardedFor ? xForwardedFor.split(",")[0] : undefined;
+      const clientIp = request.headers.get("fly-client-ip") || firstIp?.trim() || "127.0.0.1";
+      const key = `${clientIp}:${pathname}`;
       const internalSecret = process.env.NEXTAUTH_SECRET ?? "shared_internal_secret";
 
       try {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMutatingAuth, jsonError } from "@/lib/api";
-import { submitListingForVerification } from "@/lib/listings";
+import { submitListingForVerification } from "@htp/core";
 
 export async function POST(
   request: NextRequest,

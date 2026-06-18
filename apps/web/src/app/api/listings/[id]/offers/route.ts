@@ -28,6 +28,10 @@ export async function POST(
     return localizedError("LISTING_UNAVAILABLE", 404, request);
   }
 
+  if (listing.sellerId === auth.user.id) {
+    return jsonError("Sellers cannot make offers on their own listings.", 400);
+  }
+
   const verification = listing.verificationRuns[0];
   if (!verification?.computedCapIqd) {
     return jsonError("Listing has no verified price cap.", 400);

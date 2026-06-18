@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Centrifuge } from "centrifuge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n/provider";
@@ -26,6 +27,10 @@ export function ListingChat({ listingId, userId }: ListingChatProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [channelName, setChannelName] = useState<string | null>(null);
+  const [centrifugoToken, setCentrifugoToken] = useState<string | null>(null);
+  const [wsUrl, setWsUrl] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -37,6 +42,9 @@ export function ListingChat({ listingId, userId }: ListingChatProps) {
         });
         const data = (await res.json()) as {
           conversation: { id: string; messages: Message[] };
+          channel: string;
+          centrifugoToken: string;
+          wsUrl: string;
           error?: string;
         };
         if (!res.ok) {
@@ -46,6 +54,9 @@ export function ListingChat({ listingId, userId }: ListingChatProps) {
         if (!cancelled) {
           setConversationId(data.conversation.id);
           setMessages(data.conversation.messages ?? []);
+          setChannelName(data.channel);
+          setCentrifugoToken(data.centrifugoToken);
+          setWsUrl(data.wsUrl);
         }
       } catch {
         if (!cancelled) setError(t("chat.unavailable"));
@@ -57,6 +68,34 @@ export function ListingChat({ listingId, userId }: ListingChatProps) {
       cancelled = true;
     };
   }, [listingId, t]);
+
+  // Centrifugo Subscription for real-time updates
+  useEffect(() => {
+    if (!wsUrl || !centrifugoToken || !channelName) return;
+
+    const centrifuge = new Centrifuge(wsUrl, {
+      token: centrifugoToken,
+    });
+
+    const sub = centrifuge.newSubscription(channelName);
+
+    sub.on("publication", (ctx) => {
+      const newMsg = ctx.data as Message;
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+    });
+
+    sub.subscribe();
+    centrifuge.connect();
+
+    return () => {
+      sub.removeAllListeners();
+      sub.unsubscribe();
+      centrifuge.disconnect();
+    };
+  }, [wsUrl, centrifugoToken, channelName]);
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
@@ -78,7 +117,11 @@ export function ListingChat({ listingId, userId }: ListingChatProps) {
         setError(data.error ?? t("chat.sendFailed"));
         return;
       }
-      setMessages((prev) => [...prev, data]);
+      // Add message to state locally (Centrifugo listener will ignore duplicates by checking id)
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === data.id)) return prev;
+        return [...prev, data];
+      });
       setContent("");
     } catch {
       setError(t("common.networkError"));
