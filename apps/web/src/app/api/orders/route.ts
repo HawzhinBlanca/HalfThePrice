@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@htp/database";
+import { prisma, acquireAdvisoryLock } from "@htp/database";
 import {
   getPaymentProvider,
   type PaymentProviderId,
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
   const provider = getPaymentProvider(paymentMethod);
 
   const { confirmedOrder, paymentResult } = await prisma.$transaction(async (tx) => {
+    await acquireAdvisoryLock(tx, `offer_${offer.id}`);
     const order = await tx.order.create({
       data: {
         offerId: offer.id,

@@ -387,3 +387,11 @@ model WebhookEvent {
 
   @@map("webhook_events")
 }
+
+model RateLimit {
+  key       String   @id
+  points    Int
+  expireAt  DateTime @map("expire_at")
+
+  @@map("rate_limits")
+}

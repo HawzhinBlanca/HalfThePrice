@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@htp/database";
+import { prisma, acquireAdvisoryLock } from "@htp/database";
 import { requireMutatingAuth, localizedError } from "@/lib/api";
 
 export async function POST(
@@ -26,6 +26,7 @@ export async function POST(
 
   try {
     const updated = await prisma.$transaction(async (tx) => {
+      await acquireAdvisoryLock(tx, `offer_${offerId}`);
       const updateResult = await tx.offer.updateMany({
         where: { id: offerId, status: "PENDING" },
         data: { status: "ACCEPTED" },

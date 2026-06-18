@@ -5,3 +5,4 @@ export * from "./stale-listings";
 export * from "./cap-estimator";
 export * from "./state-machine";
 export * from "./retail-refresh";
+export * from "./locks";

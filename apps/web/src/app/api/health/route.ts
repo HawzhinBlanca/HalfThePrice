@@ -21,6 +21,21 @@ export async function GET() {
   checks.meilisearch = await checkMeilisearchHealth();
   checks.minio = await checkMinioHealth();
 
+  try {
+    const centrifugoUrl = process.env.CENTRIFUGO_API_URL ?? "http://localhost:8000";
+    const res = await fetch(`${centrifugoUrl}/health`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      checks.centrifugo = { ok: true, message: "Centrifugo reachable" };
+    } else {
+      checks.centrifugo = { ok: false, message: `Centrifugo status: ${res.status}` };
+    }
+  } catch (error) {
+    checks.centrifugo = {
+      ok: false,
+      message: error instanceof Error ? error.message : "Centrifugo unreachable",
+    };
+  }
+
   const ok = Object.values(checks).every((c) => c.ok || c.message.includes("not configured"));
 
   return NextResponse.json(

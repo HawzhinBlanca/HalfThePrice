@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@htp/database";
 import { uploadKycDocument } from "@htp/storage";
 import { requireAuth, requireMutatingAuth, localizedError } from "@/lib/api";
+import { sniffMimeType } from "@/lib/security";
 
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
@@ -48,6 +49,13 @@ export async function POST(request: NextRequest) {
   const buffer = Buffer.from(parsed.data.contentBase64, "base64");
 
   if (buffer.length === 0 || buffer.length > MAX_FILE_SIZE) {
+    return localizedError("INVALID_INPUT", 400, request);
+  }
+
+  // Content sniffing (magic bytes validation)
+  const detectedMime = sniffMimeType(buffer);
+
+  if (!detectedMime || detectedMime !== parsed.data.mimeType) {
     return localizedError("INVALID_INPUT", 400, request);
   }
 

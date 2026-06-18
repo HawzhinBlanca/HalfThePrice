@@ -24,6 +24,8 @@ export interface SessionResponse {
 }
 
 export class HtpApiClient {
+  private csrfToken: string | null = null;
+
   constructor(private config: ApiClientConfig) {}
 
   private url(path: string): string {
@@ -31,13 +33,33 @@ export class HtpApiClient {
   }
 
   private async fetch<T>(path: string, init?: RequestInit): Promise<T> {
+    const method = init?.method ?? "GET";
+    const isMutating = ["POST", "PUT", "DELETE", "PATCH"].includes(method.toUpperCase());
+
+    if (isMutating && !this.csrfToken && path !== "/api/csrf" && path !== "/api/auth/login") {
+      try {
+        const csrfRes = await this.fetch<{ token: string }>("/api/csrf");
+        this.csrfToken = csrfRes.token;
+      } catch (error) {
+        console.warn("Failed to automatically fetch CSRF token:", error);
+      }
+    }
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...Object.fromEntries(
+        Object.entries(init?.headers ?? {}).map(([k, v]) => [k, String(v)])
+      ),
+    };
+
+    if (isMutating && this.csrfToken) {
+      headers["x-csrf-token"] = this.csrfToken;
+    }
+
     const response = await fetch(this.url(path), {
       ...init,
       credentials: this.config.credentials ?? "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...init?.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {

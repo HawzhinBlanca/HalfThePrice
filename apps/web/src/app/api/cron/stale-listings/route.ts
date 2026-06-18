@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processStaleListings } from "@htp/database";
 import { jsonError } from "@/lib/api";
+import { timingSafeMatch } from "@/lib/security";
 
 export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (cronSecret && (!authHeader || !timingSafeMatch(authHeader, `Bearer ${cronSecret}`))) {
     return jsonError("Unauthorized.", 401);
   }
 
