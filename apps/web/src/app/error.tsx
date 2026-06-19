@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import * as Sentry from "@sentry/nextjs";
+import { useI18n } from "@/lib/i18n/provider";
 
 export default function Error({
   error,
@@ -10,6 +12,8 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useI18n();
+
   useEffect(() => {
     // Automatically report the layout/page crash to Sentry
     Sentry.captureException(error);
@@ -33,17 +37,30 @@ export default function Error({
         </svg>
       </div>
       <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
-        Something went wrong!
+        {t("error.title")}
       </h2>
       <p className="mt-2 max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
-        An unexpected error occurred. We have logged the error automatically, and our team is looking into it.
+        {t("error.description")}
       </p>
-      <button
-        onClick={() => reset()}
-        className="mt-6 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700"
-      >
-        Try again
-      </button>
+      {error.digest && (
+        <p className="mt-2 font-mono text-xs text-zinc-400">
+          {t("error.reference")}: {error.digest}
+        </p>
+      )}
+      <div className="mt-6 flex gap-3">
+        <button
+          onClick={() => reset()}
+          className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700"
+        >
+          {t("error.tryAgain")}
+        </button>
+        <Link
+          href="/"
+          className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-medium transition hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          {t("error.goHome")}
+        </Link>
+      </div>
     </div>
   );
 }

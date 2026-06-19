@@ -74,8 +74,12 @@ jobs:
       - name: Generate Prisma client
         run: pnpm db:generate
 
-      - name: Push database schema
-        run: pnpm db:push
+      - name: Deploy database migrations
+        run: npx prisma migrate deploy
+
+      - name: Verify schema drift
+        run: npx prisma migrate diff --from-schema-datamodel packages/database/prisma/schema.prisma --to-schema-datasource packages/database/prisma/schema.prisma --exit-code
+
 
       - name: Seed database
         run: pnpm db:seed

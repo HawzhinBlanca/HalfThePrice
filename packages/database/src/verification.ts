@@ -49,6 +49,7 @@ export interface VerificationDecision {
   computedCapIqd: number | null;
   selectedReferenceId: string | null;
   message: string;
+  sourceCount?: number;
   priceCapRatio?: number;
   matchConfidenceThreshold?: number;
   retailTtlDays?: number;
@@ -154,6 +155,7 @@ export function runVerification(input: VerificationInput): VerificationDecision 
       verifiedRetailIqd: null,
       computedCapIqd: null,
       selectedReferenceId: null,
+      sourceCount: 0,
       priceCapRatio: 0.5,
       matchConfidenceThreshold: category.matchConfidenceThreshold,
       retailTtlDays: category.retailTtlDays,
@@ -168,6 +170,7 @@ export function runVerification(input: VerificationInput): VerificationDecision 
       verifiedRetailIqd: null,
       computedCapIqd: null,
       selectedReferenceId: null,
+      sourceCount: 0,
       priceCapRatio: 0.5,
       matchConfidenceThreshold: category.matchConfidenceThreshold,
       retailTtlDays: category.retailTtlDays,
@@ -182,6 +185,7 @@ export function runVerification(input: VerificationInput): VerificationDecision 
       verifiedRetailIqd: null,
       computedCapIqd: null,
       selectedReferenceId: null,
+      sourceCount: 0,
       priceCapRatio: 0.5,
       matchConfidenceThreshold: category.matchConfidenceThreshold,
       retailTtlDays: category.retailTtlDays,
@@ -201,12 +205,34 @@ export function runVerification(input: VerificationInput): VerificationDecision 
       verifiedRetailIqd: null,
       computedCapIqd: null,
       selectedReferenceId: null,
+      sourceCount: 0,
       priceCapRatio: 0.5,
       matchConfidenceThreshold: category.matchConfidenceThreshold,
       retailTtlDays: category.retailTtlDays,
       message: "No fresh retail reference available.",
     };
   }
+
+  // Calculate unique sources from clean references
+  const freshInStock = retailReferences.filter(
+    (ref) =>
+      ref.stockState === "IN_STOCK" &&
+      isReferenceFresh(ref.observedAt, category.retailTtlDays) &&
+      TRUSTED_SOURCES.has(ref.sourceName),
+  );
+
+  let cleanReferences = freshInStock;
+  if (freshInStock.length > 0) {
+    const rawPrices = freshInStock.map((r) => resolveRefPriceIqd(r));
+    const medianRaw = median(rawPrices);
+    cleanReferences = freshInStock.filter((ref) => {
+      const priceIqd = resolveRefPriceIqd(ref);
+      const ratio = priceIqd / medianRaw;
+      return ratio >= 0.7 && ratio <= 1.3;
+    });
+  }
+  const uniqueSources = new Set(cleanReferences.map((ref) => ref.sourceName));
+  const sourceCount = uniqueSources.size;
 
   const capCheck = checkPriceCap(listing.sellerPriceIqd, selected.price);
 
@@ -217,6 +243,7 @@ export function runVerification(input: VerificationInput): VerificationDecision 
       verifiedRetailIqd: selected.price,
       computedCapIqd: capCheck.computedCapIqd,
       selectedReferenceId: selected.referenceId,
+      sourceCount,
       priceCapRatio: 0.5,
       matchConfidenceThreshold: category.matchConfidenceThreshold,
       retailTtlDays: category.retailTtlDays,
@@ -237,36 +264,18 @@ export function runVerification(input: VerificationInput): VerificationDecision 
     }
   }
 
-  const freshInStock = retailReferences.filter(
-    (ref) =>
-      ref.stockState === "IN_STOCK" &&
-      isReferenceFresh(ref.observedAt, category.retailTtlDays) &&
-      TRUSTED_SOURCES.has(ref.sourceName),
-  );
-
-  let cleanReferences = freshInStock;
-  if (freshInStock.length > 0) {
-    const rawPrices = freshInStock.map((r) => resolveRefPriceIqd(r));
-    const medianRaw = median(rawPrices);
-    cleanReferences = freshInStock.filter((ref) => {
-      const priceIqd = resolveRefPriceIqd(ref);
-      const ratio = priceIqd / medianRaw;
-      return ratio >= 0.7 && ratio <= 1.3;
-    });
-  }
-  const uniqueSources = new Set(cleanReferences.map((ref) => ref.sourceName));
-
-  if (uniqueSources.size < 2) {
+  if (sourceCount < 2) {
     return {
       result: "MANUAL_REVIEW",
       matchConfidence,
       verifiedRetailIqd: selected.price,
       computedCapIqd: capCheck.computedCapIqd,
       selectedReferenceId: selected.referenceId,
+      sourceCount,
       priceCapRatio: 0.5,
       matchConfidenceThreshold: category.matchConfidenceThreshold,
       retailTtlDays: category.retailTtlDays,
-      message: `Quorum not met: only ${uniqueSources.size} independent sources available (minimum 2 required). Sent to manual review.`,
+      message: `Quorum not met: only ${sourceCount} independent sources available (minimum 2 required). Sent to manual review.`,
     };
   }
 
@@ -278,6 +287,7 @@ export function runVerification(input: VerificationInput): VerificationDecision 
     verifiedRetailIqd: selected.price,
     computedCapIqd: capCheck.computedCapIqd,
     selectedReferenceId: selected.referenceId,
+    sourceCount,
     priceCapRatio: 0.5,
     matchConfidenceThreshold: category.matchConfidenceThreshold,
     retailTtlDays: category.retailTtlDays,

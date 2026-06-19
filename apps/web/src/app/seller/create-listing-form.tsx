@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/input";
@@ -19,6 +19,36 @@ export function CreateListingForm({ categories }: CreateListingFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Draft persistence: auto-save every 2s, restore on mount
+  const DRAFT_KEY = "htp_draft_listing";
+
+  const saveDraft = useCallback(() => {
+    if (!formRef.current) return;
+    const fd = new FormData(formRef.current);
+    const draft: Record<string, string> = {};
+    fd.forEach((v, k) => { if (typeof v === "string") draft[k] = v; });
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch { /* quota */ }
+  }, []);
+
+  useEffect(() => {
+    // Restore draft
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved && formRef.current) {
+        const draft = JSON.parse(saved) as Record<string, string>;
+        Object.entries(draft).forEach(([k, v]) => {
+          const el = formRef.current?.elements.namedItem(k);
+          if (el && "value" in el) (el as unknown as HTMLInputElement).value = v;
+        });
+      }
+    } catch { /* parse error */ }
+
+    // Auto-save timer
+    const timer = setInterval(saveDraft, 2000);
+    return () => clearInterval(timer);
+  }, [saveDraft]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,6 +61,15 @@ export function CreateListingForm({ categories }: CreateListingFormProps) {
 
     if (!Number.isFinite(price) || price <= 0) {
       setError(t("seller.create.invalidPrice"));
+      setLoading(false);
+      return;
+    }
+
+    // Sanity bounds: no real item is < 1,000 IQD or > 500M IQD
+    const MIN_PRICE_IQD = 1_000;
+    const MAX_PRICE_IQD = 500_000_000;
+    if (price < MIN_PRICE_IQD || price > MAX_PRICE_IQD) {
+      setError(`Price must be between ${MIN_PRICE_IQD.toLocaleString()} and ${MAX_PRICE_IQD.toLocaleString()} IQD.`);
       setLoading(false);
       return;
     }
@@ -59,6 +98,7 @@ export function CreateListingForm({ categories }: CreateListingFormProps) {
       setSuccess(true);
       router.refresh();
       e.currentTarget.reset();
+      try { localStorage.removeItem(DRAFT_KEY); } catch { /* noop */ }
     } catch {
       setError(t("common.networkError"));
     } finally {
@@ -67,7 +107,7 @@ export function CreateListingForm({ categories }: CreateListingFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="glass space-y-4 rounded-2xl p-6">
+    <form ref={formRef} onSubmit={handleSubmit} className="glass space-y-4 rounded-2xl p-6">
       <div>
         <h2 className="text-lg font-semibold">{t("seller.create.title")}</h2>
         <p className="mt-1 text-sm text-zinc-500">{t("seller.create.subtitle")}</p>

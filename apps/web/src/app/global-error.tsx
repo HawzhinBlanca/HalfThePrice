@@ -43,14 +43,29 @@ export default function GlobalError({
           <p className="mt-2 max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
             The application experienced a critical failure. The incident has been reported automatically.
           </p>
-          <button
-            onClick={() => reset()}
-            className="mt-6 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
-          >
-            Refresh application
-          </button>
+          {error.digest && (
+            <p className="mt-2 font-mono text-xs text-zinc-400">
+              Reference: {error.digest}
+            </p>
+          )}
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={() => reset()}
+              className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+            >
+              Refresh application
+            </button>
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- global-error replaces the entire document; Next.js router is not mounted */}
+            <a
+              href="/"
+              className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-medium transition hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Go home
+            </a>
+          </div>
         </div>
       </body>
     </html>
   );
 }
+

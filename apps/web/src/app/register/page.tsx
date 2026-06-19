@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useMemo } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n/provider";
@@ -18,8 +19,21 @@ function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [governorate, setGovernorate] = useState("Baghdad");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Password strength calculation
+  const passwordStrength = useMemo(() => {
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+    if (/\d/.test(password) && /[^a-zA-Z0-9]/.test(password)) score++;
+    return score;
+  }, [password]);
+
+  const strengthColor = passwordStrength <= 1 ? "bg-red-500" : passwordStrength === 2 ? "bg-amber-500" : "bg-green-500";
+  const strengthLabel = (passwordStrength <= 1 ? "password.strength.weak" : passwordStrength === 2 ? "password.strength.medium" : "password.strength.strong") as "password.strength.weak" | "password.strength.medium" | "password.strength.strong";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,15 +99,38 @@ function RegisterForm() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
-      <Input
-        label={t("auth.register.password")}
-        name="password"
-        type="password"
-        required
-        minLength={8}
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+      <div className="relative">
+        <Input
+          label={t("auth.register.password")}
+          name="password"
+          type={showPassword ? "text" : "password"}
+          required
+          minLength={8}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          className="absolute right-3 top-9 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+          aria-label={showPassword ? t("password.hide") : t("password.show")}
+        >
+          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+      {/* Password strength indicator */}
+      {password.length > 0 && (
+        <div className="space-y-1">
+          <div className="flex h-1.5 gap-1">
+            <div className={`flex-1 rounded-full transition ${passwordStrength >= 1 ? strengthColor : "bg-zinc-200 dark:bg-zinc-700"}`} />
+            <div className={`flex-1 rounded-full transition ${passwordStrength >= 2 ? strengthColor : "bg-zinc-200 dark:bg-zinc-700"}`} />
+            <div className={`flex-1 rounded-full transition ${passwordStrength >= 3 ? strengthColor : "bg-zinc-200 dark:bg-zinc-700"}`} />
+          </div>
+          <p className={`text-xs ${strengthColor === "bg-red-500" ? "text-red-500" : strengthColor === "bg-amber-500" ? "text-amber-500" : "text-green-500"}`}>
+            {t(strengthLabel)}
+          </p>
+        </div>
+      )}
       {role === "SELLER" && (
         <Input
           label={t("auth.register.governorate")}

@@ -275,4 +275,26 @@ export const ar: Messages = {
   "common.loading": "جاري التحميل...",
   "common.error": "حدث خطأ",
   "common.networkError": "خطأ في الشبكة. يرجى المحاولة مرة أخرى.",
+  "common.retry": "إعادة المحاولة",
+  "common.backToBrowse": "العودة للتصفح",
+
+  "error.title": "حدث خطأ!",
+  "error.description": "حدث خطأ غير متوقع. تم تسجيل الخطأ تلقائياً وفريقنا يعمل على حله.",
+  "error.tryAgain": "حاول مرة أخرى",
+  "error.goHome": "العودة للرئيسية",
+  "error.reference": "المرجع",
+
+  "notFound.title": "الصفحة غير موجودة",
+  "notFound.description": "الصفحة التي تبحث عنها غير موجودة أو تم نقلها.",
+  "notFound.browseDeals": "تصفح العروض",
+  "notFound.goHome": "العودة للرئيسية",
+
+  "password.show": "إظهار كلمة المرور",
+  "password.hide": "إخفاء كلمة المرور",
+  "password.strength.weak": "ضعيفة",
+  "password.strength.medium": "متوسطة",
+  "password.strength.strong": "قوية",
+
+  "seller.pendingOrders": "طلبات معلّقة",
+  "seller.acceptedOffers": "عروض مقبولة",
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { formatIqd } from "@htp/contracts";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n/provider";
@@ -26,6 +26,8 @@ export function CheckoutForm({ offerId, amountIqd }: CheckoutFormProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState("");
+  // Idempotency key: generated once per form instance, prevents double-charges on retry
+  const idempotencyKey = useRef(crypto.randomUUID());
 
   async function handleCheckout() {
     setLoading(true);
@@ -35,12 +37,16 @@ export function CheckoutForm({ offerId, amountIqd }: CheckoutFormProps) {
     try {
       const res = await mutatingFetch("/api/orders", {
         method: "POST",
+        headers: {
+          "x-idempotency-key": idempotencyKey.current,
+        },
         body: JSON.stringify({ offerId, paymentMethod: method }),
       });
       const data = (await res.json()) as {
         order?: { status: string };
         payment?: { message: string; sandbox: boolean };
         error?: string;
+        idempotent?: boolean;
       };
 
       if (!res.ok) {
@@ -96,3 +102,4 @@ export function CheckoutForm({ offerId, amountIqd }: CheckoutFormProps) {
     </div>
   );
 }
+

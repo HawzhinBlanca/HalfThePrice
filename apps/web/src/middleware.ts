@@ -150,6 +150,9 @@ export async function middleware(request: NextRequest) {
             "x-internal-request": internalSecret,
           },
           body: JSON.stringify({ key, limit: 60, windowSeconds: 60 }),
+          // Circuit breaker: 200ms timeout prevents cascading latency
+          // If rate-limit service is slow/down, fail-open (allow request)
+          signal: AbortSignal.timeout(200),
         });
 
         if (res.status === 429) {
@@ -159,11 +162,9 @@ export async function middleware(request: NextRequest) {
           ));
         }
       } catch (err) {
-        console.error("Failed to check rate limit (fail-closed protection triggered):", err);
-        return withCorrelation(NextResponse.json(
-          { error: "Service temporarily unavailable.", code: "RATE_LIMIT_SERVICE_FAILURE" },
-          { status: 503 }
-        ));
+        // Fail-open: if rate-limit check times out or errors, allow the request
+        // This prevents a rate-limit outage from cascading into a full outage
+        console.warn("Rate-limit check skipped (fail-open):", err instanceof Error ? err.message : err);
       }
     }
   }

@@ -32,6 +32,21 @@ export async function POST(
     return jsonError("Sellers cannot make offers on their own listings.", 400);
   }
 
+  // Double-offer guard: prevent duplicate active offers from the same buyer
+  const existingOffer = await prisma.offer.findFirst({
+    where: {
+      listingId,
+      buyerId: auth.user.id,
+      status: { in: ["PENDING", "ACCEPTED"] },
+    },
+  });
+  if (existingOffer) {
+    return NextResponse.json(
+      { error: "You already have an active offer on this listing.", existingOfferId: existingOffer.id },
+      { status: 409 },
+    );
+  }
+
   const verification = listing.verificationRuns[0];
   if (!verification?.computedCapIqd) {
     return jsonError("Listing has no verified price cap.", 400);

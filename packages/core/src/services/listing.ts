@@ -116,6 +116,7 @@ export async function submitListingForVerification(
         selectedReferenceId: decision.selectedReferenceId,
         verifiedRetailIqd: decision.verifiedRetailIqd,
         computedCapIqd: decision.computedCapIqd,
+        sourceCount: decision.sourceCount ?? 0,
         priceCapRatio: decision.priceCapRatio ?? 0.5,
         matchConfidenceThreshold: decision.matchConfidenceThreshold ?? 0.85,
         retailTtlDays: decision.retailTtlDays ?? 30,

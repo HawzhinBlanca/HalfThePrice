@@ -21,7 +21,8 @@ export function SubmitListingButton({ listingId }: { listingId: string }) {
 
   async function handleSubmit() {
     setLoading(true);
-    setResult(null);
+    // Optimistic: show pending status immediately for snappy UX
+    setResult({ message: t("seller.submitting"), status: "PENDING_VERIFICATION", success: true });
 
     try {
       const res = await mutatingFetch(`/api/seller/listings/${listingId}/submit`, {
@@ -30,6 +31,7 @@ export function SubmitListingButton({ listingId }: { listingId: string }) {
       const data: SubmitResult = await res.json();
 
       if (!res.ok) {
+        // Revert optimistic state on failure
         setResult({ message: data.message ?? t("seller.submitFailed"), success: false });
         return;
       }
@@ -37,6 +39,7 @@ export function SubmitListingButton({ listingId }: { listingId: string }) {
       setResult({ message: data.message, status: data.status, success: true });
       router.refresh();
     } catch {
+      // Revert optimistic state on network failure
       setResult({ message: t("common.networkError"), success: false });
     } finally {
       setLoading(false);

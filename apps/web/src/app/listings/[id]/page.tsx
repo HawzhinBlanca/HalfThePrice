@@ -1,6 +1,7 @@
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MapPin, ShieldCheck } from "lucide-react";
+import { ChevronRight, MapPin, ShieldCheck } from "lucide-react";
 import { prisma } from "@htp/database";
 import { formatIqd } from "@htp/contracts";
 import { getSession } from "@/lib/auth";
@@ -62,6 +63,24 @@ export default async function ListingDetailPage({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      {/* Breadcrumb navigation */}
+      <nav className="mb-6 flex items-center gap-1 text-sm text-zinc-500" aria-label="Breadcrumb">
+        <Link href="/browse" className="hover:text-brand-600 dark:hover:text-brand-400 transition">
+          {t("common.backToBrowse")}
+        </Link>
+        <ChevronRight className="h-3.5 w-3.5" />
+        <Link
+          href={`/browse?categoryId=${listing.categoryId}`}
+          className="hover:text-brand-600 dark:hover:text-brand-400 transition"
+        >
+          {listing.category.nameEn}
+        </Link>
+        <ChevronRight className="h-3.5 w-3.5" />
+        <span className="truncate font-medium text-zinc-900 dark:text-zinc-100">
+          {listing.title}
+        </span>
+      </nav>
+
       <div className="grid gap-10 lg:grid-cols-2">
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-zinc-100 trust-ring dark:bg-zinc-800">
           {listing.imageUrl ? (

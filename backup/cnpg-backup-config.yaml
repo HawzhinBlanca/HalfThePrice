@@ -1,0 +1,20 @@
+# CloudNativePG Cluster Backup configuration:
+# 
+# apiVersion: postgresql.cnpg.io/v1
+# kind: Cluster
+# metadata:
+#   name: htp-postgres
+# spec:
+#   instances: 3
+#   storage:
+#     size: 10Gi
+#   backup:
+#     barmanObjectStore:
+#       destinationPath: s3://htp-backups/pg-wal/
+#       endpointURL: https://minio.internal:9000
+#       s3Credentials:
+#         name: s3-creds
+#         key: s3-secret
+#       wal:
+#         compression: gzip
+#       retentionPolicy: "30d"

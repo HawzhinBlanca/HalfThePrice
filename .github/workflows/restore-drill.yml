@@ -48,8 +48,8 @@ jobs:
       - name: Generate Prisma client
         run: pnpm db:generate
 
-      - name: Initialize source database (db:push)
-        run: pnpm db:push
+      - name: Initialize source database (migrate deploy)
+        run: npx prisma migrate deploy
 
       - name: Seed source database
         run: pnpm db:seed

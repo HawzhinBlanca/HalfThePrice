@@ -255,6 +255,7 @@ model PriceVerificationRun {
   selectedReferenceId  String?
   verifiedRetailIqd    Int?
   computedCapIqd       Int?
+  sourceCount          Int?               @default(0)
   priceCapRatio        Float              @default(0.5)
   matchConfidenceThreshold Float          @default(0.85)
   retailTtlDays        Int                @default(30)

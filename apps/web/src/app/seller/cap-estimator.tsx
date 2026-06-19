@@ -5,6 +5,7 @@ import { formatIqd } from "@htp/contracts";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n/provider";
+import { mutatingFetch } from "@/lib/use-csrf";
 
 interface CapEstimatorProps {
   categories: { id: string; name: string }[];
@@ -33,7 +34,7 @@ export function CapEstimator({ categories }: CapEstimatorProps) {
     setResult(null);
 
     try {
-      const res = await fetch("/api/cap-estimate", {
+      const res = await mutatingFetch("/api/cap-estimate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, categoryId }),

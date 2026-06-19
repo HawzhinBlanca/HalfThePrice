@@ -276,4 +276,26 @@ export const ku: Messages = {
   "common.loading": "بارکردن...",
   "common.error": "هەڵەیەک ڕوویدا",
   "common.networkError": "هەڵەی تۆڕ. تکایە دووبارە هەوڵ بدەرەوە.",
+  "common.retry": "هەوڵدانەوە",
+  "common.backToBrowse": "گەڕانەوە بۆ گەڕان",
+
+  "error.title": "هەڵەیەک ڕوویدا!",
+  "error.description": "هەڵەیەکی چاوەنەکراو ڕوویدا. هەڵەکە بە شێوەی خۆکار تۆمار کرا و تیمەکەمان لە چارەسەرکردنیدایە.",
+  "error.tryAgain": "دووبارە هەوڵ بدەرەوە",
+  "error.goHome": "گەڕانەوە بۆ سەرەکی",
+  "error.reference": "ئاماژە",
+
+  "notFound.title": "لاپەڕە نەدۆزرایەوە",
+  "notFound.description": "لاپەڕەکە بوونی نییە یان گوازراوەتەوە.",
+  "notFound.browseDeals": "گەڕان بۆ دڵخوازەکان",
+  "notFound.goHome": "گەڕانەوە بۆ سەرەکی",
+
+  "password.show": "نیشاندانی وشەی نهێنی",
+  "password.hide": "شاردنەوەی وشەی نهێنی",
+  "password.strength.weak": "لاواز",
+  "password.strength.medium": "مامناوەند",
+  "password.strength.strong": "بەهێز",
+
+  "seller.pendingOrders": "داواکاری چاوەڕوان",
+  "seller.acceptedOffers": "پێشنیاری پەسەندکراو",
 };

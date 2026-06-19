@@ -20,7 +20,7 @@ export default async function SellerDashboardPage() {
 
   const { locale, t } = await getServerI18n();
 
-  const [listings, categories, sellerProfile] = await Promise.all([
+  const [listings, categories, sellerProfile, pendingOrderCount, acceptedOfferCount] = await Promise.all([
     prisma.listing.findMany({
       where: { sellerId: session.id },
       include: {
@@ -36,6 +36,21 @@ export default async function SellerDashboardPage() {
     prisma.sellerProfile.findUnique({
       where: { userId: session.id },
       include: { kycDocuments: true },
+    }),
+    // Pending orders for this seller's listings
+    prisma.order.count({
+      where: {
+        offer: { listing: { sellerId: session.id } },
+        status: { in: ["CONFIRMED", "PAYMENT_PROCESSING", "COD_PENDING"] },
+      },
+    }),
+    // Accepted offers awaiting checkout
+    prisma.offer.count({
+      where: {
+        listing: { sellerId: session.id },
+        status: "ACCEPTED",
+        order: null,
+      },
     }),
   ]);
 
@@ -60,6 +75,18 @@ export default async function SellerDashboardPage() {
               <p className="text-2xl font-bold">{draftCount}</p>
               <p className="text-xs text-zinc-500">{t("seller.drafts")}</p>
             </div>
+            {pendingOrderCount > 0 && (
+              <div className="glass rounded-xl px-4 py-3 ring-2 ring-amber-400/30">
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{pendingOrderCount}</p>
+                <p className="text-xs text-zinc-500">{t("seller.pendingOrders")}</p>
+              </div>
+            )}
+            {acceptedOfferCount > 0 && (
+              <div className="glass rounded-xl px-4 py-3">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{acceptedOfferCount}</p>
+                <p className="text-xs text-zinc-500">{t("seller.acceptedOffers")}</p>
+              </div>
+            )}
           </div>
         )}
       </div>

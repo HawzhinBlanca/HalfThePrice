@@ -274,4 +274,26 @@ export const en = {
   "common.loading": "Loading...",
   "common.error": "Something went wrong",
   "common.networkError": "Network error. Please try again.",
+  "common.retry": "Retry",
+  "common.backToBrowse": "Back to browse",
+
+  "error.title": "Something went wrong!",
+  "error.description": "An unexpected error occurred. We have logged the error automatically, and our team is looking into it.",
+  "error.tryAgain": "Try again",
+  "error.goHome": "Go home",
+  "error.reference": "Reference",
+
+  "notFound.title": "Page not found",
+  "notFound.description": "The page you're looking for doesn't exist or has been moved.",
+  "notFound.browseDeals": "Browse deals",
+  "notFound.goHome": "Go home",
+
+  "password.show": "Show password",
+  "password.hide": "Hide password",
+  "password.strength.weak": "Weak",
+  "password.strength.medium": "Medium",
+  "password.strength.strong": "Strong",
+
+  "seller.pendingOrders": "Pending orders",
+  "seller.acceptedOffers": "Accepted offers",
 };

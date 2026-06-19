@@ -57,6 +57,8 @@ export function ListingCard({
             fill
             className="object-cover transition duration-500 group-hover:scale-105"
             sizes="(max-width: 768px) 100vw, 33vw"
+            placeholder="blur"
+            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTRlNGU3Ii8+PC9zdmc+"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-zinc-400">

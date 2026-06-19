@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("buyer browse journey", () => {
+  test.beforeEach(async ({ page }) => {
+    page.on("console", (msg) => console.log("BROWSER CONSOLE:", msg.text()));
+    page.on("pageerror", (err) => console.log("BROWSER ERROR:", err.stack || err.message));
+  });
   test("home page shows verified marketplace messaging", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: /half the price/i })).toBeVisible();
@@ -26,23 +30,29 @@ test.describe("buyer browse journey", () => {
 
   test("search filters listings", async ({ page }) => {
     await page.goto("/browse");
-    await page.getByLabel("Search").fill("Samsung");
-    await page.waitForURL(/q=Samsung/);
-    await expect(page.getByText(/Samsung/i).first()).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await page.waitForSelector('form[data-hydrated="true"]');
+    await page.getByLabel("Search").pressSequentially("Samsung", { delay: 50 });
+    await expect(page).toHaveURL(/q=Samsung/, { timeout: 15_000 });
+    await expect(page.getByText(/Samsung/i).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("fuzzy search tolerates typos", async ({ page }) => {
     await page.goto("/browse");
-    await page.getByLabel("Search").fill("Samsun");
-    await page.waitForURL(/q=Samsun/);
+    await page.waitForLoadState("networkidle");
+    await page.waitForSelector('form[data-hydrated="true"]');
+    await page.getByLabel("Search").pressSequentially("Samsun", { delay: 50 });
+    await expect(page).toHaveURL(/q=Samsun/, { timeout: 15_000 });
     await expect(page.getByText(/Samsung/i).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("active filter chips appear and clear", async ({ page }) => {
     await page.goto("/browse?q=Samsung");
+    await page.waitForLoadState("networkidle");
+    await page.waitForSelector('form[data-hydrated="true"]');
     await expect(page.getByRole("button", { name: /Remove Search/i })).toBeVisible();
-    await page.getByRole("button", { name: /Clear all filters/i }).click();
-    await page.waitForURL("/browse");
+    await page.getByRole("link", { name: /Clear all filters/i }).click();
+    await expect(page).toHaveURL(/\/browse$/);
   });
 });
 

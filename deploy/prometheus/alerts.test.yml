@@ -1,0 +1,65 @@
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      # Test 1: DatabaseDown
+      # Starts healthy (1), goes down (0) at 2m.
+      # Needs to stay down for 1m (fires at 3m).
+      - series: 'htp_database_up'
+        values: '1 1 0 0 0 0'
+
+      # Test 2: PriceCapViolationsDetected
+      # Starts clean (0), violations start at 2m (1).
+      # Needs to stay > 0 for 5m (fires at 7m).
+      - series: 'htp_price_cap_violations_count'
+        values: '0 0 1 1 1 1 1 1'
+
+      # Test 3: PaymentFailureSpike
+      # 0m: 0
+      # 1m: 10 -> rate = 0.0166
+      # 2m: 20 -> rate = 0.0333
+      # 3m: 30 -> rate = 0.05
+      # 4m: 40 -> rate = 0.0666 (>0.05) - first cross
+      # 5m: 50
+      # 6m: 60
+      # 7m: 70
+      # 8m: 80
+      # 9m: 90 -> rate remains >0.05 for 5m continuously (from 4m to 9m). Fires at 9m.
+      - series: 'sentry_events_total{tags_error_type="PaymentError"}'
+        values: '0 10 20 30 40 50 60 70 80 90 100 110 120'
+
+    alert_rule_test:
+      # DatabaseDown fires 1 minute after it goes to 0 (at 3m eval time).
+      - eval_time: 3m
+        alertname: DatabaseDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "Database connection lost"
+              description: "Postgres database is unreachable from the web application."
+
+      # PriceCapViolationsDetected fires 5 minutes after it goes to > 0 (violation started at 2m, so fires at 7m).
+      - eval_time: 7m
+        alertname: PriceCapViolationsDetected
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "Price cap violations detected"
+              description: "There are currently 1 live listings violating the half-price cap rules."
+
+      # PaymentFailureSpike fires 5 minutes after the rate crosses 0.05 (crosses at 4m, fires at 9m).
+      - eval_time: 9m
+        alertname: PaymentFailureSpike
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              tags_error_type: PaymentError
+            exp_annotations:
+              summary: "Spike in payment transaction failures"
+              description: "Sentry detected a high rate of PaymentError occurrences in the last 10 minutes."

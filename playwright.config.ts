@@ -20,12 +20,13 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm --filter @htp/web dev --port 3001",
+    command: "pnpm build && pnpm --filter @htp/web start --port 3001",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
     env: {
-      CSRF_DISABLED: "true",
+      CSRF_DISABLED: "false",
+      SKIP_ENV_VALIDATION: "true",
     },
   },
 });

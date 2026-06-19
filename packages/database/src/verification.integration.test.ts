@@ -80,6 +80,7 @@ describe.skipIf(!hasDatabase)("verification integration", () => {
         selectedReferenceId: decision.selectedReferenceId,
         verifiedRetailIqd: decision.verifiedRetailIqd,
         computedCapIqd: decision.computedCapIqd,
+        sourceCount: decision.sourceCount,
         result: decision.result,
         message: decision.message,
       },
@@ -135,6 +136,106 @@ describe.skipIf(!hasDatabase)("verification integration", () => {
     expect(decision.result).toBe("FAIL");
     expect(resolveListingStatusFromVerification(decision.result)).toBe("REJECTED");
 
+    await prisma.listing.delete({ where: { id: listing.id } });
+  });
+
+  it("database trigger: rejects PASS verification run when sourceCount is less than 2", async () => {
+    const listing = await prisma.listing.create({
+      data: {
+        sellerId,
+        categoryId,
+        canonicalProductId: productId,
+        title: "Database Trigger Quorum Test",
+        sellerPriceIqd: 500_000,
+        status: "DRAFT",
+        governorate: "Baghdad",
+      },
+    });
+
+    // Try inserting a PASS run with sourceCount = 1 (violates check_price_verification_run_integrity)
+    await expect(
+      prisma.priceVerificationRun.create({
+        data: {
+          listingId: listing.id,
+          matchConfidence: 0.95,
+          verifiedRetailIqd: 1_000_000,
+          computedCapIqd: 500_000,
+          sourceCount: 1, // < 2
+          result: "PASS",
+          message: "Trigger Test",
+        },
+      })
+    ).rejects.toThrow(/sourceCount.*must be at least 2/);
+
+    await prisma.listing.delete({ where: { id: listing.id } });
+  });
+
+  it("database trigger: rejects PASS verification run when computedCapIqd does not match recomputed cap", async () => {
+    const listing = await prisma.listing.create({
+      data: {
+        sellerId,
+        categoryId,
+        canonicalProductId: productId,
+        title: "Database Trigger Cap Integrity Test",
+        sellerPriceIqd: 500_000,
+        status: "DRAFT",
+        governorate: "Baghdad",
+      },
+    });
+
+    // Try inserting a PASS run with computedCapIqd != verifiedRetailIqd * 0.5 (violates check_price_verification_run_integrity)
+    await expect(
+      prisma.priceVerificationRun.create({
+        data: {
+          listingId: listing.id,
+          matchConfidence: 0.95,
+          verifiedRetailIqd: 1_000_000,
+          computedCapIqd: 600_000, // Should be 500_000
+          sourceCount: 2,
+          result: "PASS",
+          message: "Trigger Test",
+        },
+      })
+    ).rejects.toThrow(/computedCapIqd.*does not match recomputed cap/);
+
+    await prisma.listing.delete({ where: { id: listing.id } });
+  });
+
+  it("database trigger: rejects publishing listing to LIVE when the price is over the recomputed cap", async () => {
+    const listing = await prisma.listing.create({
+      data: {
+        sellerId,
+        categoryId,
+        canonicalProductId: productId,
+        title: "Database Trigger Listing Cap Test",
+        sellerPriceIqd: 600_000, // Over 500_000 cap
+        status: "DRAFT",
+        governorate: "Baghdad",
+      },
+    });
+
+    // Insert a valid PASS run first (which is successfully stored because it conforms to the run integrity trigger)
+    const run = await prisma.priceVerificationRun.create({
+      data: {
+        listingId: listing.id,
+        matchConfidence: 0.95,
+        verifiedRetailIqd: 1_000_000,
+        computedCapIqd: 500_000,
+        sourceCount: 2,
+        result: "PASS",
+        message: "Trigger Test",
+      },
+    });
+
+    // Attempt to set listing status to LIVE. The database trigger check_listing_price_cap must recompute the cap and block it.
+    await expect(
+      prisma.listing.update({
+        where: { id: listing.id },
+        data: { status: "LIVE" },
+      })
+    ).rejects.toThrow(/exceeds recomputed cap/);
+
+    await prisma.priceVerificationRun.delete({ where: { id: run.id } });
     await prisma.listing.delete({ where: { id: listing.id } });
   });
 });

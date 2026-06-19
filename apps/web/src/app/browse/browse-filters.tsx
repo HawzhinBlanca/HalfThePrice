@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Input, Select } from "@/components/ui/input";
 import { IRAQI_GOVERNORATES } from "@/lib/constants";
@@ -18,6 +18,13 @@ export function BrowseFilters({ categories }: BrowseFiltersProps) {
   const { locale, t } = useI18n();
   const sortOptions = useMemo(() => getSortOptions(locale), [locale]);
 
+  const [mounted, setMounted] = useState(false);
+  const [q, setQ] = useState(searchParams.get("q") ?? "");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const update = useCallback(
     (key: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -31,6 +38,25 @@ export function BrowseFilters({ categories }: BrowseFiltersProps) {
     },
     [router, searchParams],
   );
+
+  // Debounce query param update to prevent router flooding
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const currentQ = searchParams.get("q") ?? "";
+      if (q !== currentQ) {
+        update("q", q);
+      }
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [q, searchParams, update]);
+
+  // Sync state if URL changes externally (e.g. clear filters)
+  useEffect(() => {
+    setQ(searchParams.get("q") ?? "");
+  }, [searchParams]);
 
   const activeFilters = useMemo(() => {
     const chips: { key: string; label: string; value: string }[] = [];
@@ -86,13 +112,14 @@ export function BrowseFilters({ categories }: BrowseFiltersProps) {
         onSubmit={(e) => e.preventDefault()}
         role="search"
         aria-label={t("browse.title")}
+        data-hydrated={mounted}
       >
         <Input
           label={t("browse.search")}
           name="q"
           placeholder={t("browse.searchPlaceholder")}
-          defaultValue={searchParams.get("q") ?? ""}
-          onChange={(e) => update("q", e.target.value)}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
           className="lg:col-span-2"
         />
         <Select
@@ -159,13 +186,12 @@ export function BrowseFilters({ categories }: BrowseFiltersProps) {
               <X className="h-3 w-3" />
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => router.push("/browse")}
+          <a
+            href="/browse"
             className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline dark:hover:text-zinc-200"
           >
             {t("browse.clearFilters")}
-          </button>
+          </a>
         </div>
       )}
     </div>

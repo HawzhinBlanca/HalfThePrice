@@ -4,6 +4,7 @@ import { type PaymentProviderId } from "@htp/payments";
 import { createOrderFromOffer } from "@htp/core";
 import { requireMutatingAuth, localizedError, withCorrelation } from "@/lib/api";
 import { isFeatureEnabledAsync } from "@/lib/features";
+import { prisma } from "@htp/database";
 
 const schema = z.object({
   offerId: z.string().min(1),
@@ -24,6 +25,23 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return localizedError("INVALID_INPUT", 400, request);
+    }
+
+    // Idempotency guard: prevent duplicate orders from network retries
+    const idempotencyKey = request.headers.get("x-idempotency-key");
+    if (idempotencyKey) {
+      const existing = await prisma.order.findFirst({
+        where: {
+          buyerId: auth.user.id,
+          offer: { id: parsed.data.offerId },
+        },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { order: existing, payment: null, idempotent: true },
+          { status: 200 },
+        );
+      }
     }
 
     try {
@@ -53,3 +71,4 @@ export async function POST(request: NextRequest) {
     }
   });
 }
+

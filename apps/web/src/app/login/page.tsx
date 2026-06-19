@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n/provider";
@@ -15,6 +16,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -61,16 +63,26 @@ function LoginForm() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
-      <Input
-        label={t("auth.signIn.password")}
-        name="password"
-        type="password"
-        required
-        autoComplete="current-password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        error={error}
-      />
+      <div className="relative">
+        <Input
+          label={t("auth.signIn.password")}
+          name="password"
+          type={showPassword ? "text" : "password"}
+          required
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={error}
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          className="absolute right-3 top-9 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+          aria-label={showPassword ? t("password.hide") : t("password.show")}
+        >
+          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? t("auth.signIn.submitting") : t("auth.signIn.submit")}
       </Button>
@@ -95,3 +107,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

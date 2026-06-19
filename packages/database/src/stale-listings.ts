@@ -28,6 +28,7 @@ export async function processStaleListings(
   return await prisma.$transaction(async (tx) => {
     await acquireAdvisoryLock(tx, "stale_listings_cron");
 
+    // Bounded batch: process at most 100 listings per cron tick to prevent OOM on TTL cliff
     const liveListings = await tx.listing.findMany({
       where: { status: "LIVE" },
       include: {
@@ -39,6 +40,8 @@ export async function processStaleListings(
           include: { selectedReference: true },
         },
       },
+      take: 100,
+      orderBy: { updatedAt: "asc" }, // oldest-updated first, so stale items are processed first
     });
 
     const results: StaleListingResult[] = [];
@@ -86,6 +89,7 @@ export async function processStaleListings(
           selectedReferenceId: decision.selectedReferenceId,
           verifiedRetailIqd: decision.verifiedRetailIqd,
           computedCapIqd: decision.computedCapIqd,
+          sourceCount: decision.sourceCount ?? 0,
           priceCapRatio: decision.priceCapRatio ?? 0.5,
           matchConfidenceThreshold: decision.matchConfidenceThreshold ?? 0.85,
           retailTtlDays: decision.retailTtlDays ?? 30,

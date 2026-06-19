@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatIqd } from "@htp/contracts";
 import { Button } from "@/components/ui/button";
@@ -21,18 +21,21 @@ export function OfferForm({ listingId, maxCap }: OfferFormProps) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isNetworkError, setIsNetworkError] = useState(false);
+  const lastSubmitRef = useRef<{ amount: string; message: string } | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submitOffer(amt: string, msg: string) {
     setError("");
+    setIsNetworkError(false);
     setLoading(true);
+    lastSubmitRef.current = { amount: amt, message: msg };
 
     try {
       const res = await mutatingFetch(`/api/listings/${listingId}/offers`, {
         method: "POST",
         body: JSON.stringify({
-          amountIqd: Number(amount),
-          message: message || undefined,
+          amountIqd: Number(amt),
+          message: msg || undefined,
         }),
       });
 
@@ -47,8 +50,20 @@ export function OfferForm({ listingId, maxCap }: OfferFormProps) {
       router.refresh();
     } catch {
       setError(t("common.networkError"));
+      setIsNetworkError(true);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await submitOffer(amount, message);
+  }
+
+  async function handleRetry() {
+    if (lastSubmitRef.current) {
+      await submitOffer(lastSubmitRef.current.amount, lastSubmitRef.current.message);
     }
   }
 
@@ -87,6 +102,15 @@ export function OfferForm({ listingId, maxCap }: OfferFormProps) {
       <Button type="submit" disabled={loading}>
         {loading ? t("offer.submitting") : t("offer.submit")}
       </Button>
+      {isNetworkError && (
+        <button
+          type="button"
+          onClick={handleRetry}
+          className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
+        >
+          {t("common.retry")}
+        </button>
+      )}
     </form>
   );
 }

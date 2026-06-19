@@ -6,6 +6,7 @@ import { t } from "@/lib/i18n/messages";
 import { ThemeToggle } from "./theme-toggle";
 import { LocaleSwitcher } from "./locale-switcher";
 import { LogoutButton } from "./logout-button";
+import { MobileNavToggle } from "./mobile-nav-toggle";
 
 export async function Header() {
   const [session, locale] = await Promise.all([getSession(), getLocale()]);
@@ -22,7 +23,7 @@ export async function Header() {
           </span>
         </Link>
 
-        <nav className="flex items-center gap-1 sm:gap-2" aria-label={t(locale, "nav.main")}>
+        <MobileNavToggle>
           <Link
             href="/browse"
             className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
@@ -60,8 +61,9 @@ export async function Header() {
               {t(locale, "nav.signIn")}
             </Link>
           )}
-        </nav>
+        </MobileNavToggle>
       </div>
     </header>
   );
 }
+

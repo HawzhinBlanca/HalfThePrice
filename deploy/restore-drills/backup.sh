@@ -17,7 +17,7 @@ echo "=== [$(date)] Starting Database Backup ==="
 
 # 1. Perform a logical backup (pg_dump)
 echo "Running pg_dump for $DATABASE_NAME..."
-pg_dump -h localhost -p "$PG_PORT" -U "$PG_USER" -F c -b -v -f "$BACKUP_DIR/db_${DATABASE_NAME}_${TIMESTAMP}.backup"
+pg_dump -h localhost -p "$PG_PORT" -U "$PG_USER" -F c -b -v -f "$BACKUP_DIR/db_${DATABASE_NAME}_${TIMESTAMP}.backup" "$DATABASE_NAME"
 
 # Keep only the last 30 days of logical backups
 find "$BACKUP_DIR" -name "db_${DATABASE_NAME}_*.backup" -mtime +30 -delete

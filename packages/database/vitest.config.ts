@@ -5,5 +5,15 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     exclude: ["src/**/*.integration.test.ts"],
+    coverage: {
+      enabled: true,
+      provider: "v8",
+      include: ["src/verification.ts", "src/cap-estimator.ts"],
+      thresholds: {
+        statements: 90,
+        functions: 90,
+        lines: 90,
+      },
+    },
   },
 });
