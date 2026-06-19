@@ -65,10 +65,14 @@ export class MiswagAdapter implements RetailAdapter {
         return await this.searchLive(title);
       } catch (error) {
         console.warn(
-          "[MiswagAdapter] live crawl failed, using sandbox fallback:",
+          "[MiswagAdapter] live crawl failed:",
           error instanceof Error ? error.message : error,
         );
-        return this.searchSandbox(title);
+        if (process.env.ALLOW_SANDBOX_FALLBACK === "true") {
+          console.warn("[MiswagAdapter] falling back to sandbox (allow-sandbox-fallback is true)");
+          return this.searchSandbox(title);
+        }
+        return [];
       }
     }
     return this.searchSandbox(title);

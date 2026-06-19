@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@htp/database";
-import { requireAuth, requireMutatingAuth, jsonError } from "@/lib/api";
+import { requireAuth, requireMutatingAuth, jsonError, withCorrelation } from "@/lib/api";
 import { sanitizeText } from "@/lib/sanitize";
+import { isFeatureEnabledAsync } from "@/lib/features";
 
 const onboardingSchema = z.object({
   legalName: z.string().min(2).max(200),
@@ -13,77 +14,89 @@ const onboardingSchema = z.object({
   payoutPreference: z.enum(["COD", "ZAINCASH", "QICARD", "FASTPAY"]).optional(),
 });
 
-export async function GET() {
-  const auth = await requireAuth(["SELLER", "ADMIN"]);
-  if (auth instanceof NextResponse) return auth;
+export async function GET(request: NextRequest) {
+  return withCorrelation(request, async () => {
+    if (!(await isFeatureEnabledAsync("ONBOARDING"))) {
+      return new Response("Seller onboarding is temporarily disabled.", { status: 503 });
+    }
 
-  const profile = await prisma.sellerProfile.findUnique({
-    where: { userId: auth.user.id },
-    include: {
-      kycDocuments: { orderBy: { uploadedAt: "desc" } },
-    },
+    const auth = await requireAuth(["SELLER", "ADMIN"]);
+    if (auth instanceof NextResponse) return auth;
+
+    const profile = await prisma.sellerProfile.findUnique({
+      where: { userId: auth.user.id },
+      include: {
+        kycDocuments: { orderBy: { uploadedAt: "desc" } },
+      },
+    });
+
+    if (!profile) {
+      return jsonError("Seller profile not found.", 404);
+    }
+
+    return NextResponse.json(profile);
   });
-
-  if (!profile) {
-    return jsonError("Seller profile not found.", 404);
-  }
-
-  return NextResponse.json(profile);
 }
 
 export async function PATCH(request: NextRequest) {
-  const auth = await requireMutatingAuth(request, ["SELLER", "ADMIN"]);
-  if (auth instanceof NextResponse) return auth;
+  return withCorrelation(request, async () => {
+    if (!(await isFeatureEnabledAsync("ONBOARDING"))) {
+      return new Response("Seller onboarding is temporarily disabled.", { status: 503 });
+    }
 
-  const body: unknown = await request.json();
-  const parsed = onboardingSchema.safeParse(body);
+    const auth = await requireMutatingAuth(request, ["SELLER", "ADMIN"]);
+    if (auth instanceof NextResponse) return auth;
 
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid input", details: parsed.error.flatten() },
-      { status: 400 },
-    );
-  }
+    const body: unknown = await request.json();
+    const parsed = onboardingSchema.safeParse(body);
 
-  const profile = await prisma.sellerProfile.findUnique({
-    where: { userId: auth.user.id },
-  });
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: parsed.error.flatten() },
+        { status: 400 },
+      );
+    }
 
-  if (!profile) {
-    return jsonError("Seller profile not found.", 404);
-  }
+    const profile = await prisma.sellerProfile.findUnique({
+      where: { userId: auth.user.id },
+    });
 
-  const updated = await prisma.sellerProfile.update({
-    where: { id: profile.id },
-    data: {
-      legalName: sanitizeText(parsed.data.legalName, 200),
-      displayName: sanitizeText(parsed.data.displayName, 100),
-      governorate: sanitizeText(parsed.data.governorate, 100),
-      licenseNumber: parsed.data.licenseNumber
-        ? sanitizeText(parsed.data.licenseNumber, 50)
-        : undefined,
-      contactPhone: parsed.data.contactPhone
-        ? sanitizeText(parsed.data.contactPhone, 20)
-        : undefined,
-      payoutPreference: parsed.data.payoutPreference,
-      kycStatus: profile.kycStatus === "REJECTED" ? "PENDING" : profile.kycStatus,
-    },
-    include: { kycDocuments: true },
-  });
+    if (!profile) {
+      return jsonError("Seller profile not found.", 404);
+    }
 
-  await prisma.auditEvent.create({
-    data: {
-      actorId: auth.user.id,
-      objectType: "seller_profile",
-      objectId: profile.id,
-      action: "ONBOARDING_UPDATED",
-      after: {
-        legalName: updated.legalName,
-        governorate: updated.governorate,
-        kycStatus: updated.kycStatus,
+    const updated = await prisma.sellerProfile.update({
+      where: { id: profile.id },
+      data: {
+        legalName: sanitizeText(parsed.data.legalName, 200),
+        displayName: sanitizeText(parsed.data.displayName, 100),
+        governorate: sanitizeText(parsed.data.governorate, 100),
+        licenseNumber: parsed.data.licenseNumber
+          ? sanitizeText(parsed.data.licenseNumber, 50)
+          : undefined,
+        contactPhone: parsed.data.contactPhone
+          ? sanitizeText(parsed.data.contactPhone, 20)
+          : undefined,
+        payoutPreference: parsed.data.payoutPreference,
+        kycStatus: profile.kycStatus === "REJECTED" ? "PENDING" : profile.kycStatus,
       },
-    },
-  });
+      include: { kycDocuments: true },
+    });
 
-  return NextResponse.json(updated);
+    await prisma.auditEvent.create({
+      data: {
+        actorId: auth.user.id,
+        objectType: "seller_profile",
+        objectId: profile.id,
+        action: "ONBOARDING_UPDATED",
+        after: {
+          legalName: updated.legalName,
+          governorate: updated.governorate,
+          kycStatus: updated.kycStatus,
+        },
+      },
+    });
+
+    return NextResponse.json(updated);
+  });
 }

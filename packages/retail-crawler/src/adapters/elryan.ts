@@ -72,10 +72,14 @@ export class ElryanAdapter implements RetailAdapter {
         return await this.searchLive(title);
       } catch (error) {
         console.warn(
-          "[ElryanAdapter] live crawl failed, using sandbox fallback:",
+          "[ElryanAdapter] live crawl failed:",
           error instanceof Error ? error.message : error,
         );
-        return this.searchSandbox(title);
+        if (process.env.ALLOW_SANDBOX_FALLBACK === "true") {
+          console.warn("[ElryanAdapter] falling back to sandbox (allow-sandbox-fallback is true)");
+          return this.searchSandbox(title);
+        }
+        return [];
       }
     }
     return this.searchSandbox(title);

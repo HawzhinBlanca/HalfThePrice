@@ -6,52 +6,59 @@ import {
   createCentrifugoToken,
   publishToChannel,
 } from "@/lib/centrifugo";
-import { requireAuth, requireMutatingAuth, localizedError } from "@/lib/api";
+import { requireAuth, requireMutatingAuth, localizedError, withCorrelation } from "@/lib/api";
+import { isFeatureEnabledAsync } from "@/lib/features";
 
 const messageSchema = z.object({
   content: z.string().min(1).max(2000),
 });
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireAuth(["BUYER", "SELLER", "ADMIN"]);
-  if (auth instanceof NextResponse) return auth;
+  return withCorrelation(request, async () => {
+    if (!(await isFeatureEnabledAsync("CHAT"))) {
+      return new Response("Chat is temporarily disabled.", { status: 503 });
+    }
 
-  const { id } = await params;
+    const auth = await requireAuth(["BUYER", "SELLER", "ADMIN"]);
+    if (auth instanceof NextResponse) return auth;
 
-  const conversation = await prisma.conversation.findUnique({
-    where: { id },
-    include: {
-      messages: { orderBy: { createdAt: "asc" }, take: 100 },
-    },
-  });
+    const { id } = await params;
 
-  if (!conversation) {
-    return localizedError("NOT_FOUND", 404);
-  }
+    const conversation = await prisma.conversation.findUnique({
+      where: { id },
+      include: {
+        messages: { orderBy: { createdAt: "asc" }, take: 100 },
+      },
+    });
 
-  const isParticipant =
-    conversation.buyerId === auth.user.id ||
-    conversation.sellerId === auth.user.id ||
-    auth.user.role === "ADMIN";
+    if (!conversation) {
+      return localizedError("NOT_FOUND", 404);
+    }
 
-  if (!isParticipant) {
-    return localizedError("FORBIDDEN", 403);
-  }
+    const isParticipant =
+      conversation.buyerId === auth.user.id ||
+      conversation.sellerId === auth.user.id ||
+      auth.user.role === "ADMIN";
 
-  const channel = conversationChannel(conversation.id);
-  const token = await createCentrifugoToken({
-    userId: auth.user.id,
-    channels: [channel],
-  });
+    if (!isParticipant) {
+      return localizedError("FORBIDDEN", 403);
+    }
 
-  return NextResponse.json({
-    messages: conversation.messages,
-    channel,
-    centrifugoToken: token,
-    wsUrl: process.env.NEXT_PUBLIC_CENTRIFUGO_WS_URL ?? "ws://localhost:8000/connection/websocket",
+    const channel = conversationChannel(conversation.id);
+    const token = await createCentrifugoToken({
+      userId: auth.user.id,
+      channels: [channel],
+    });
+
+    return NextResponse.json({
+      messages: conversation.messages,
+      channel,
+      centrifugoToken: token,
+      wsUrl: process.env.NEXT_PUBLIC_CENTRIFUGO_WS_URL ?? "ws://localhost:8000/connection/websocket",
+    });
   });
 }
 
@@ -59,56 +66,62 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireMutatingAuth(request, ["BUYER", "SELLER", "ADMIN"]);
-  if (auth instanceof NextResponse) return auth;
+  return withCorrelation(request, async () => {
+    if (!(await isFeatureEnabledAsync("CHAT"))) {
+      return new Response("Chat is temporarily disabled.", { status: 503 });
+    }
 
-  const { id } = await params;
-  const body: unknown = await request.json();
-  const parsed = messageSchema.safeParse(body);
+    const auth = await requireMutatingAuth(request, ["BUYER", "SELLER", "ADMIN"]);
+    if (auth instanceof NextResponse) return auth;
 
-  if (!parsed.success) {
-    return localizedError("INVALID_INPUT", 400, request);
-  }
+    const { id } = await params;
+    const body: unknown = await request.json();
+    const parsed = messageSchema.safeParse(body);
 
-  const conversation = await prisma.conversation.findUnique({ where: { id } });
+    if (!parsed.success) {
+      return localizedError("INVALID_INPUT", 400, request);
+    }
 
-  if (!conversation) {
-    return localizedError("NOT_FOUND", 404, request);
-  }
+    const conversation = await prisma.conversation.findUnique({ where: { id } });
 
-  const isParticipant =
-    conversation.buyerId === auth.user.id ||
-    conversation.sellerId === auth.user.id;
+    if (!conversation) {
+      return localizedError("NOT_FOUND", 404, request);
+    }
 
-  if (!isParticipant) {
-    return localizedError("FORBIDDEN", 403, request);
-  }
+    const isParticipant =
+      conversation.buyerId === auth.user.id ||
+      conversation.sellerId === auth.user.id;
 
-  const message = await prisma.message.create({
-    data: {
-      conversationId: conversation.id,
-      senderId: auth.user.id,
-      content: parsed.data.content,
-    },
-  });
+    if (!isParticipant) {
+      return localizedError("FORBIDDEN", 403, request);
+    }
 
-  await prisma.conversation.update({
-    where: { id: conversation.id },
-    data: { updatedAt: new Date() },
-  });
-
-  const channel = conversationChannel(conversation.id);
-
-  try {
-    await publishToChannel(channel, {
-      id: message.id,
-      content: message.content,
-      senderId: message.senderId,
-      createdAt: message.createdAt.toISOString(),
+    const message = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderId: auth.user.id,
+        content: parsed.data.content,
+      },
     });
-  } catch {
-    // Centrifugo may be offline in dev — message still persisted
-  }
 
-  return NextResponse.json(message, { status: 201 });
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { updatedAt: new Date() },
+    });
+
+    const channel = conversationChannel(conversation.id);
+
+    try {
+      await publishToChannel(channel, {
+        id: message.id,
+        content: message.content,
+        senderId: message.senderId,
+        createdAt: message.createdAt.toISOString(),
+      });
+    } catch {
+      // Centrifugo may be offline in dev — message still persisted
+    }
+
+    return NextResponse.json(message, { status: 201 });
+  });
 }

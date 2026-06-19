@@ -122,8 +122,25 @@ describe("Elryan live adapter (mocked HTTP)", () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 
-  it("falls back to sandbox when live API fails", async () => {
+  it("does NOT fall back to sandbox in live mode on failure by default", async () => {
     vi.stubEnv("RETAIL_CRAWLER_MODE", "live");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network blocked");
+      }),
+    );
+
+    const results = await new ElryanAdapter("live").searchByTitle(
+      "Samsung Galaxy A54 128GB",
+    );
+
+    expect(results).toHaveLength(0);
+  });
+
+  it("falls back to sandbox when live API fails and ALLOW_SANDBOX_FALLBACK is true", async () => {
+    vi.stubEnv("RETAIL_CRAWLER_MODE", "live");
+    vi.stubEnv("ALLOW_SANDBOX_FALLBACK", "true");
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {

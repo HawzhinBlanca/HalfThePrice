@@ -15,6 +15,11 @@ export {
   ELRYAN_ORIGIN,
   ELRYAN_SEARCH_PATH,
 } from "./adapters/elryan-parse";
+export {
+  parseAlhafidhSearchResponse,
+  ALHAFIDH_ORIGIN,
+  ALHAFIDH_SEARCH_PATH,
+} from "./adapters/alhafidh-parse";
 
 const sandboxAdapters: RetailAdapter[] = [
   new ElryanAdapter("sandbox"),

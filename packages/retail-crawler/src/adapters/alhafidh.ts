@@ -1,7 +1,14 @@
 import type { RetailCrawlerMode } from "../config";
 import { getRetailCrawlerMode } from "../config";
 import { throttle } from "../rate-limit";
+import { getCrawlerUserAgent, isPathAllowed } from "../robots";
 import type { RetailAdapter, RetailObservation } from "../types";
+import {
+  ALHAFIDH_ORIGIN,
+  ALHAFIDH_SEARCH_PATH,
+  parseAlhafidhSearchResponse,
+  type AlhafidhSearchResponse,
+} from "./alhafidh-parse";
 
 const MOCK_CATALOG: Array<{
   keywords: string[];
@@ -65,10 +72,14 @@ export class AlhafidhAdapter implements RetailAdapter {
         return await this.searchLive(title);
       } catch (error) {
         console.warn(
-          "[AlhafidhAdapter] live crawl failed, using sandbox fallback:",
+          "[AlhafidhAdapter] live crawl failed:",
           error instanceof Error ? error.message : error,
         );
-        return this.searchSandbox(title);
+        if (process.env.ALLOW_SANDBOX_FALLBACK === "true") {
+          console.warn("[AlhafidhAdapter] falling back to sandbox (allow-sandbox-fallback is true)");
+          return this.searchSandbox(title);
+        }
+        return [];
       }
     }
     return this.searchSandbox(title);
@@ -90,46 +101,40 @@ export class AlhafidhAdapter implements RetailAdapter {
       stockState: "IN_STOCK",
       productTitle: item.title,
       parserVersion: "sandbox-1.0.0",
+      nativeCurrency: "IQD",
+      nativeAmount: item.priceIqd,
+      exchangeRate: 1.0,
+      rateTimestamp: new Date(),
     }));
   }
 
   private async searchLive(title: string): Promise<RetailObservation[]> {
+    const allowed = await isPathAllowed(ALHAFIDH_ORIGIN, ALHAFIDH_SEARCH_PATH);
+    if (!allowed) {
+      throw new Error("Alhafidh robots.txt disallows search path");
+    }
+
     await throttle("alhafidh", 2000);
 
-    const searchUrl = `https://api.alhafidh.com/v1/search?q=${encodeURIComponent(title)}`;
+    const searchUrl = `${ALHAFIDH_ORIGIN}${ALHAFIDH_SEARCH_PATH}?q=${encodeURIComponent(title)}&resources[type]=product`;
     const response = await fetch(searchUrl, {
       method: "GET",
       headers: {
         Accept: "application/json",
-        "User-Agent": "HalfThePriceCrawler/1.0",
+        "User-Agent": getCrawlerUserAgent(),
       },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
       throw new Error(`Alhafidh search returned status ${response.status}`);
     }
 
-    const payload = (await response.json()) as {
-      products?: Array<{
-        name: string;
-        price: number;
-        url: string;
-        in_stock: boolean;
-      }>;
-    };
-
-    if (!payload.products || payload.products.length === 0) {
-      throw new Error("Alhafidh search returned no matching products");
+    const payload = (await response.json()) as AlhafidhSearchResponse;
+    const observations = parseAlhafidhSearchResponse(payload, title);
+    if (observations.length === 0) {
+      throw new Error("Alhafidh suggest API returned no matching products");
     }
-
-    return payload.products.map((p) => ({
-      sourceName: this.sourceName,
-      sourceUrl: p.url,
-      observedPriceIqd: p.price,
-      stockState: p.in_stock ? "IN_STOCK" : "OUT_OF_STOCK",
-      productTitle: p.name,
-      parserVersion: "live-1.0.0",
-    }));
+    return observations;
   }
 }
