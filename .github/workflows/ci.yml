@@ -92,8 +92,8 @@ jobs:
       - name: Unit tests (database)
         run: pnpm --filter @htp/database test
 
-      - name: Integration tests
-        run: pnpm --filter @htp/database test:integration
+      - name: Integration tests (database + money-path with coverage gate)
+        run: pnpm test:integration
 
       - name: Build
         run: pnpm build

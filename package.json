@@ -6,7 +6,7 @@
     "build": "pnpm --filter @htp/database generate && pnpm --filter @htp/web build",
     "lint": "pnpm --filter @htp/web lint",
     "test": "pnpm --filter @htp/web test && pnpm --filter @htp/database test && pnpm --filter @htp/payments test && pnpm --filter @htp/retail-crawler test",
-    "test:integration": "pnpm --filter @htp/database test:integration",
+    "test:integration": "pnpm --filter @htp/database test:integration && pnpm --filter @htp/core test:integration",
     "db:generate": "pnpm --filter @htp/database generate",
     "db:migrate": "pnpm --filter @htp/database migrate",
     "db:push": "pnpm --filter @htp/database push",
