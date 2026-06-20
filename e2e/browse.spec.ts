@@ -32,7 +32,7 @@ test.describe("buyer browse journey", () => {
     await page.goto("/browse");
     await page.waitForLoadState("networkidle");
     await page.waitForSelector('form[data-hydrated="true"]');
-    await page.getByLabel("Search").pressSequentially("Samsung", { delay: 50 });
+    await page.getByLabel("Search").fill("Samsung");
     await expect(page).toHaveURL(/q=Samsung/, { timeout: 15_000 });
     await expect(page.getByText(/Samsung/i).first()).toBeVisible({ timeout: 10_000 });
   });
@@ -41,7 +41,7 @@ test.describe("buyer browse journey", () => {
     await page.goto("/browse");
     await page.waitForLoadState("networkidle");
     await page.waitForSelector('form[data-hydrated="true"]');
-    await page.getByLabel("Search").pressSequentially("Samsun", { delay: 50 });
+    await page.getByLabel("Search").fill("Samsun");
     await expect(page).toHaveURL(/q=Samsun/, { timeout: 15_000 });
     await expect(page.getByText(/Samsung/i).first()).toBeVisible({ timeout: 10_000 });
   });

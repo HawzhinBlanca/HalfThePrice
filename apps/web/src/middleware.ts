@@ -65,8 +65,7 @@ export async function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-correlation-id", correlationId);
 
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const withCorrelation = (res: any) => {
+  const withCorrelation = (res: NextResponse) => {
     if (res && res.headers) {
       res.headers.set("x-correlation-id", correlationId);
     }
