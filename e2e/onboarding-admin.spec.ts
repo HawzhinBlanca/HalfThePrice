@@ -4,7 +4,7 @@ test.describe("seller onboarding and admin audit", () => {
   test("pending seller sees onboarding form", async ({ page }) => {
     await page.goto("/login?redirect=/seller");
     await page.getByLabel("Email").fill("pending-seller@half-the-price.iq");
-    await page.getByLabel("Password").fill("password123");
+    await page.getByLabel("Password", { exact: true }).fill("password123");
     await page.getByRole("button", { name: /sign in/i }).click();
 
     await page.waitForURL("/seller");
@@ -15,7 +15,7 @@ test.describe("seller onboarding and admin audit", () => {
   test("admin sees audit trail section", async ({ page }) => {
     await page.goto("/login?redirect=/admin");
     await page.getByLabel("Email").fill("admin@half-the-price.iq");
-    await page.getByLabel("Password").fill("password123");
+    await page.getByLabel("Password", { exact: true }).fill("password123");
     await page.getByRole("button", { name: /sign in/i }).click();
 
     await page.waitForURL("/admin");
@@ -29,7 +29,7 @@ test.describe("seller onboarding and admin audit", () => {
   test("admin moderation queue shows SLA indicator", async ({ page }) => {
     await page.goto("/login?redirect=/admin");
     await page.getByLabel("Email").fill("admin@half-the-price.iq");
-    await page.getByLabel("Password").fill("password123");
+    await page.getByLabel("Password", { exact: true }).fill("password123");
     await page.getByRole("button", { name: /sign in/i }).click();
     await page.waitForURL("/admin");
 

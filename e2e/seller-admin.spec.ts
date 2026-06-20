@@ -4,7 +4,7 @@ test.describe("seller and admin journeys", () => {
   test("seller can access dashboard and see listings", async ({ page }) => {
     await page.goto("/login?redirect=/seller");
     await page.getByLabel("Email").fill("seller@half-the-price.iq");
-    await page.getByLabel("Password").fill("password123");
+    await page.getByLabel("Password", { exact: true }).fill("password123");
     await page.getByRole("button", { name: /sign in/i }).click();
 
     await page.waitForURL("/seller");
@@ -15,7 +15,7 @@ test.describe("seller and admin journeys", () => {
   test("admin can view moderation queue", async ({ page }) => {
     await page.goto("/login?redirect=/admin");
     await page.getByLabel("Email").fill("admin@half-the-price.iq");
-    await page.getByLabel("Password").fill("password123");
+    await page.getByLabel("Password", { exact: true }).fill("password123");
     await page.getByRole("button", { name: /sign in/i }).click();
 
     await page.waitForURL("/admin");

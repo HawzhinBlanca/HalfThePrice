@@ -48,24 +48,45 @@ export async function POST(request: NextRequest) {
       return localizedError("FORBIDDEN", 403, request);
     }
 
-    const conversation = await prisma.conversation.upsert({
-      where: {
-        listingId_buyerId_sellerId: {
+    let conversation;
+    try {
+      conversation = await prisma.conversation.upsert({
+        where: {
+          listingId_buyerId_sellerId: {
+            listingId: listing.id,
+            buyerId,
+            sellerId,
+          },
+        },
+        create: {
           listingId: listing.id,
           buyerId,
           sellerId,
         },
-      },
-      create: {
-        listingId: listing.id,
-        buyerId,
-        sellerId,
-      },
-      update: {},
-      include: {
-        messages: { orderBy: { createdAt: "asc" }, take: 50 },
-      },
-    });
+        update: {},
+        include: {
+          messages: { orderBy: { createdAt: "asc" }, take: 50 },
+        },
+      });
+    } catch (error) {
+      const err = error as { code?: string };
+      if (err.code === "P2002") {
+        conversation = await prisma.conversation.findUniqueOrThrow({
+          where: {
+            listingId_buyerId_sellerId: {
+              listingId: listing.id,
+              buyerId,
+              sellerId,
+            },
+          },
+          include: {
+            messages: { orderBy: { createdAt: "asc" }, take: 50 },
+          },
+        });
+      } else {
+        throw error;
+      }
+    }
 
     const channel = conversationChannel(conversation.id);
     const token = await createCentrifugoToken({

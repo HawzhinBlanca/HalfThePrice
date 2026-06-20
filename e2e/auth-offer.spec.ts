@@ -4,7 +4,7 @@ test.describe("buyer auth and offer flow", () => {
   test("buyer can login and see offer form on listing", async ({ page }) => {
     await page.goto("/login");
     await page.getByLabel("Email").fill("buyer@half-the-price.iq");
-    await page.getByLabel("Password").fill("password123");
+    await page.getByLabel("Password", { exact: true }).fill("password123");
     await page.getByRole("button", { name: /sign in/i }).click();
 
     await page.waitForURL("/");
@@ -18,7 +18,7 @@ test.describe("buyer auth and offer flow", () => {
   test("buyer can submit a valid offer", async ({ page }) => {
     await page.goto("/login");
     await page.getByLabel("Email").fill("buyer@half-the-price.iq");
-    await page.getByLabel("Password").fill("password123");
+    await page.getByLabel("Password", { exact: true }).fill("password123");
     await page.getByRole("button", { name: /sign in/i }).click();
     await page.waitForURL("/");
 

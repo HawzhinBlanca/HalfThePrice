@@ -5,17 +5,18 @@ import { Menu, X } from "lucide-react";
 
 interface MobileNavToggleProps {
   children: React.ReactNode;
+  mainNavLabel: string;
 }
 
-export function MobileNavToggle({ children }: MobileNavToggleProps) {
+export function MobileNavToggle({ children, mainNavLabel }: MobileNavToggleProps) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
       {/* Desktop nav — always visible on sm+ */}
-      <div className="hidden items-center gap-1 sm:flex sm:gap-2">
+      <nav aria-label={mainNavLabel} className="hidden items-center gap-1 sm:flex sm:gap-2">
         {children}
-      </div>
+      </nav>
 
       {/* Mobile hamburger button */}
       <button
@@ -33,9 +34,9 @@ export function MobileNavToggle({ children }: MobileNavToggleProps) {
           className="absolute inset-x-0 top-16 z-50 border-b border-zinc-200/60 bg-white/95 p-4 backdrop-blur-xl dark:border-zinc-800/60 dark:bg-zinc-950/95 sm:hidden"
           onClick={() => setOpen(false)}
         >
-          <div className="flex flex-col gap-2">
+          <nav aria-label={mainNavLabel} className="flex flex-col gap-2">
             {children}
-          </div>
+          </nav>
         </div>
       )}
     </>

@@ -23,7 +23,7 @@ export async function Header() {
           </span>
         </Link>
 
-        <MobileNavToggle>
+        <MobileNavToggle mainNavLabel={t(locale, "nav.main")}>
           <Link
             href="/browse"
             className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
