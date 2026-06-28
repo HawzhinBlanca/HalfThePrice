@@ -30,7 +30,7 @@ storage/payments/retail-crawler/sdk packages. Node ≥ 20, pnpm 10.12.1.
   `node_modules/**`, `.next/**`, `dist/**`, `build/**`, `backup/**`.
 - Never commit secrets. Never weaken/skip a test, use `--no-verify`, or edit CI/guards to force green.
 - Keep the CI grep-guards true: no compiled `*.js` under `*/src`, no nested `packages/*/packages`,
-  no `dev-secret`-style literal in source.
+  and no hardcoded dev/test secret literals committed in source.
 - Price-cap & verification logic (`packages/contracts`, `packages/database` verification engine,
   `packages/core` listing service) is safety-critical — changes require a test proving the cap holds.
 
