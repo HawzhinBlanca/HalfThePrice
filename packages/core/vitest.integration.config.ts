@@ -10,7 +10,7 @@ export default defineConfig({
     coverage: {
       enabled: true,
       provider: "v8",
-      include: ["src/services/order.ts"],
+      include: ["src/services/order.ts", "src/services/listing.ts"],
       // Ratchet floor: the money path is currently proven at ~95% stmts.
       // CI fails if a change drops exactly-once coverage below this.
       thresholds: {

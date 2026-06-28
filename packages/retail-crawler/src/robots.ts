@@ -1,7 +1,7 @@
 const USER_AGENT =
   "HalfThePriceBot/1.0 (+https://github.com/HawzhinBlanca/HalfThePrice)";
 
-const robotsCache = new Map<string, { allowed: boolean; checkedAt: number }>();
+const robotsCache = new Map<string, { content: string | null; checkedAt: number }>();
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
 export function getCrawlerUserAgent(): string {
@@ -17,31 +17,36 @@ export async function isPathAllowed(
   path: string,
 ): Promise<boolean> {
   const cached = robotsCache.get(origin);
+  let content: string | null = null;
+  let useCached = false;
+
   if (cached && Date.now() - cached.checkedAt < CACHE_TTL_MS) {
-    return cached.allowed;
+    content = cached.content;
+    useCached = true;
   }
 
-  try {
-    const res = await fetch(`${origin}/robots.txt`, {
-      headers: { "User-Agent": USER_AGENT },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) {
-      robotsCache.set(origin, { allowed: true, checkedAt: Date.now() });
-      return true;
+  if (!useCached) {
+    try {
+      const res = await fetch(`${origin}/robots.txt`, {
+        headers: { "User-Agent": USER_AGENT },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!res.ok) {
+        content = null;
+      } else {
+        content = (await res.text()).trim() || null;
+      }
+    } catch {
+      content = null;
     }
-    const body = (await res.text()).trim();
-    if (!body) {
-      robotsCache.set(origin, { allowed: true, checkedAt: Date.now() });
-      return true;
-    }
-    const allowed = !bodyHasDisallowAll(body, path);
-    robotsCache.set(origin, { allowed, checkedAt: Date.now() });
-    return allowed;
-  } catch {
-    robotsCache.set(origin, { allowed: true, checkedAt: Date.now() });
+    robotsCache.set(origin, { content, checkedAt: Date.now() });
+  }
+
+  if (content === null) {
     return true;
   }
+
+  return !bodyHasDisallowAll(content, path);
 }
 
 function bodyHasDisallowAll(robotsTxt: string, path: string): boolean {

@@ -20,6 +20,22 @@ describe("in-memory rate limiter", () => {
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
   });
+
+  it("prunes expired entries and prevents memory leaks", () => {
+    const key = "test-prune-key";
+    // Create an entry that is already expired
+    checkRateLimit(key, 2, -100);
+
+    // Force call checkRateLimit enough times to trigger random pruning
+    for (let i = 0; i < 100; i++) {
+      checkRateLimit(`other-key-${i}`, 1, 10000);
+    }
+
+    // Check again - it should have been pruned and start fresh
+    const result = checkRateLimit(key, 2, 10000);
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(1);
+  });
 });
 
 describe("getClientIp resolution", () => {
