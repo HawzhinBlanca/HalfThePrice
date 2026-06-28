@@ -17,6 +17,16 @@ export function checkRateLimit(
   windowMs: number,
 ): RateLimitResult {
   const now = Date.now();
+
+  // Prune expired entries to prevent memory leaks (5% chance per invocation)
+  if (Math.random() < 0.05) {
+    for (const [k, entry] of store.entries()) {
+      if (now >= entry.resetAt) {
+        store.delete(k);
+      }
+    }
+  }
+
   const entry = store.get(key);
 
   if (!entry || now >= entry.resetAt) {

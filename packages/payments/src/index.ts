@@ -160,6 +160,10 @@ export function verifyWebhookSignature(
     expected = signPayload(payload, secret);
   }
 
+  if (signature.length !== expected.length) {
+    return false;
+  }
+
   try {
     return timingSafeEqual(
       Buffer.from(signature),

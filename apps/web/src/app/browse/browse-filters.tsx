@@ -109,7 +109,10 @@ export function BrowseFilters({ categories }: BrowseFiltersProps) {
     <div className="space-y-3">
       <form
         className="glass grid gap-4 rounded-2xl p-4 sm:grid-cols-2 lg:grid-cols-6"
-        onSubmit={(e) => e.preventDefault()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          update("q", q);
+        }}
         role="search"
         aria-label={t("browse.title")}
         data-hydrated={mounted}
