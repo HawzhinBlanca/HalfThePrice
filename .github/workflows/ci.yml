@@ -69,7 +69,9 @@ jobs:
 
       - name: Generate Software Bill of Materials (SBOM)
         run: |
-          npx -y @cyclonedx/cyclonedx-npm@1.19.2 --output-format JSON --output-file sbom.json
+          # --ignore-npm-errors: this is a pnpm workspace, so `npm ls` reports phantom
+          # "missing" peer/dev deps; the flag lets cyclonedx still emit a valid SBOM.
+          npx -y @cyclonedx/cyclonedx-npm@1.19.2 --ignore-npm-errors --output-format JSON --output-file sbom.json
 
       - name: Generate Prisma client
         run: pnpm db:generate
