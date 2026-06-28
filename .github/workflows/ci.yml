@@ -77,10 +77,11 @@ jobs:
         run: pnpm db:generate
 
       - name: Deploy database migrations
-        run: npx prisma migrate deploy
+        # Use the project's pinned prisma (6.x) + its schema, not `npx prisma` (pulls latest major).
+        run: pnpm --filter @htp/database exec prisma migrate deploy
 
       - name: Verify schema drift
-        run: npx prisma migrate diff --from-schema-datamodel packages/database/prisma/schema.prisma --to-schema-datasource packages/database/prisma/schema.prisma --exit-code
+        run: pnpm --filter @htp/database exec prisma migrate diff --from-schema-datamodel prisma/schema.prisma --to-schema-datasource prisma/schema.prisma --exit-code
 
 
       - name: Seed database
