@@ -16,6 +16,14 @@ overrides:
   # Patch high-severity undici advisories (Expo transitive deps).
   # GHSA-vmh5-mc38-953g, GHSA-vxpw-j846-p89q, GHSA-hm92-r4w5-c3mj
   "undici": ">=7.28.0"
+  # Patch moderate/low transitive advisories (kept only where the full gate stays green).
+  # NOTE: @opentelemetry/core >=2.8.0 is intentionally NOT overridden — forcing it breaks
+  # @sentry/node's OTel integration ("Cannot read properties of undefined (AlwaysOn)").
+  # That advisory is moderate (trace-context parsing) and does not fail the CI high gate.
+  "postcss": ">=8.5.10"
+  "js-yaml": ">=4.2.0"
+  "uuid": ">=11.1.1"
+  "esbuild": ">=0.28.1"
 
 onlyBuiltDependencies:
   - '@prisma/client'
