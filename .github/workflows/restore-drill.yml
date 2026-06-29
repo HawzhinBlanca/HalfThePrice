@@ -49,7 +49,8 @@ jobs:
         run: pnpm db:generate
 
       - name: Initialize source database (migrate deploy)
-        run: npx prisma migrate deploy
+        # Pinned project prisma (6.x) + package-local schema, not `npx prisma` (pulls latest major).
+        run: pnpm --filter @htp/database exec prisma migrate deploy
 
       - name: Seed source database
         run: pnpm db:seed
@@ -65,9 +66,10 @@ jobs:
 
       - name: Verify schema migration drift on restored database
         run: |
-          DATABASE_URL="postgresql://htp:htp_dev_password@localhost:5432/half_the_price_restored?schema=public" npx prisma migrate diff \
-            --from-schema-datamodel packages/database/prisma/schema.prisma \
-            --to-schema-datasource packages/database/prisma/schema.prisma \
+          DATABASE_URL="postgresql://htp:htp_dev_password@localhost:5432/half_the_price_restored?schema=public" \
+            pnpm --filter @htp/database exec prisma migrate diff \
+            --from-schema-datamodel prisma/schema.prisma \
+            --to-schema-datasource prisma/schema.prisma \
             --exit-code
 
       - name: Run price cap audit on restored database

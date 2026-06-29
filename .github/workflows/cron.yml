@@ -10,8 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Cron Endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::notice::CRON_SECRET not set — skipping stale-listings cron (set the secret + deploy to enable)."
+            exit 0
+          fi
           curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
             -f \
             https://half-the-price.fly.dev/api/cron/stale-listings
