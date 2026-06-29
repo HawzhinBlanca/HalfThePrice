@@ -74,4 +74,5 @@ jobs:
 
       - name: Run price cap audit on restored database
         run: |
-          DATABASE_URL="postgresql://htp:htp_dev_password@localhost:5432/half_the_price_restored?schema=public" npx tsx deploy/restore-drills/cap-audit.ts
+          DATABASE_URL="postgresql://htp:htp_dev_password@localhost:5432/half_the_price_restored?schema=public" \
+            pnpm --filter @htp/database exec tsx ../../deploy/restore-drills/cap-audit.ts
